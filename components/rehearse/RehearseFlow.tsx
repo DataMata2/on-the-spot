@@ -12,7 +12,7 @@ import { EXAMPLE_AGENDA, MAX_AGENDA_CHARS, MIN_AGENDA_CHARS, REHEARSE_COUNT } fr
 
 type Stage = { k: "input"; error?: string } | { k: "generating" } | { k: "drill"; items: DrillQueueItem[]; run: number } | { k: "paywall"; reason: string };
 
-/** The cobalt field the rehearse screens sit on (not around the drill itself: Drill1Flow paints its own screen). */
+/** The cobalt field every rehearse screen sits on, the queued drill included (Drill1Flow inherits it in queue mode). */
 export function RehearseField({ children }: { children: ReactNode }) {
   return (
     <ScreenField
@@ -81,7 +81,12 @@ export function RehearseFlow() {
   }
 
   if (stage.k === "drill") {
-    return <Drill1Flow key={stage.run} queue={stage.items} onExit={() => setStage({ k: "input" })} />;
+    // Queue mode paints no field of its own (Drill1Flow inherits the page's): the cobalt rehearse field and its gutters.
+    return (
+      <RehearseField>
+        <Drill1Flow key={stage.run} queue={stage.items} onExit={() => setStage({ k: "input" })} />
+      </RehearseField>
+    );
   }
 
   const generating = stage.k === "generating";
