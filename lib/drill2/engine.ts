@@ -9,6 +9,7 @@ import {
   negationReadings,
   normaliseText,
   parseNumber,
+  readNumber,
   parseTime,
   parseWeekday,
   readParts,
@@ -199,9 +200,15 @@ export function readSlot(fact: Fact, text: string): Slot {
     // The relation is read on the words as said: "not before 5 pm" and "no later than" need their negators.
     slot.time = { kind: t.kind, relation: timeRelation(value.latest), ...(t.kind === "definite" ? { minutes: t.minutes } : {}) };
   } else if (check.kind === "number") {
-    const n = parseNumber(value.text, check.units, { otherUnits: check.otherUnits, bareNumberOk: check.bareNumberOk, rangeSpanMinutes: check.rangeSpanMinutes });
+    const { parse: n, alt } = readNumber(value.text, check.units, { otherUnits: check.otherUnits, bareNumberOk: check.bareNumberOk, rangeSpanMinutes: check.rangeSpanMinutes });
     slot.count =
-      n.kind === "value" ? { kind: "value", value: n.n } : n.kind === "wrong_unit" ? { kind: "wrong_unit", value: n.n, unit: n.unit } : { kind: n.kind };
+      n.kind === "value"
+        ? { kind: "value", value: n.n }
+        : n.kind === "wrong_unit"
+          ? { kind: "wrong_unit", value: n.n, unit: n.unit }
+          : n.kind === "ambiguous"
+            ? { kind: "ambiguous", ...(alt ? { alt: true } : {}) }
+            : { kind: n.kind };
   } else if (check.kind === "weekday") {
     const d = parseWeekday(value.text);
     slot.day = d.kind === "value" ? { kind: "value", value: d.day } : { kind: d.kind };
@@ -338,8 +345,10 @@ export function gradeConfirmation(s: Scenario, state: DrillState, fields: Extrac
       // re-checked against the whole utterance. (The extractor found this fact, so its words are the ones read.)
       else if (quote && g.status !== "contradicted" && whole.status === "contradicted") g = whole;
       // Nor a hedge on a count: "30 minutes" out of "30 minutes or maybe 2 hours" is two lengths, not clear. (Only
-      // counts: a count is read next to its unit, so another fact's words don't make it ambiguous.)
-      else if (quote && g.status === "correct" && eff.check.kind === "number" && whole.reason === "ambiguous") g = whole;
+      // counts: a count is read next to its unit, so another fact's words don't make it ambiguous.) Only a real
+      // second length counts (its own unit, a hedge, a vague amount): a clock number beside the length ("Wednesday
+      // at 2, 30 minutes") is not one (B-R12-01).
+      else if (quote && g.status === "correct" && eff.check.kind === "number" && whole.reason === "ambiguous" && whole.slot?.count?.alt) g = whole;
     }
     return g;
   });

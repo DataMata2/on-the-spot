@@ -66,6 +66,9 @@ function numberAt(tokens: string[], i: number): { n: number; len: number } | nul
  */
 export type NumberParse = { kind: "value"; n: number } | { kind: "wrong_unit"; n: number; unit: string } | { kind: "ambiguous" } | { kind: "none" };
 
+/** Words that make two numbers before one unit two choices ("30 or 40 minutes", "maybe 20, maybe 30 minutes"). */
+const HEDGE_WORDS = new Set(["or", "maybe", "either", "perhaps", "possibly", "to"]);
+
 /** Numbers and vague quantities in a token range. */
 function scanNumbers(tokens: string[], from: number, to: number): { nums: number[]; vague: boolean } {
   const nums: number[] = [];
@@ -120,6 +123,18 @@ function decimalHours(text: string): string {
 }
 
 export function parseNumber(text: string, units: string[] = [], opts: NumberOptions = {}): NumberParse {
+  return readNumber(text, units, opts).parse;
+}
+
+/**
+ * parseNumber, plus `alt` on an ambiguous reading: the unclear part is a real second length, not just two numbers
+ * side by side. It is another number with its own unit ("30 minutes or 2 hours", "30 minutes ... 45 minutes"),
+ * numbers joined by a hedge ("30 or 40 minutes", "20 to 30 minutes"), a vague quantity ("a few minutes"), or a
+ * unit whose number was taken back ("not 30 minutes", a correction). A clock hour beside the length ("Wednesday
+ * at 2, 30 minutes") is not one (B-R12-01).
+ */
+export function readNumber(text: string, units: string[] = [], opts: NumberOptions = {}): { parse: NumberParse; alt: boolean } {
+  const res = (parse: NumberParse, alt = false) => ({ parse, alt: parse.kind === "ambiguous" && alt });
   const spoken = prepare(decimalHours(text))
     .replace(/\b(?:an |one )?hour and a half\b/g, "90 minutes")
     .replace(/\b(?:a )?half (?:an )?hour\b/g, "30 minutes")
@@ -138,6 +153,8 @@ export function parseNumber(text: string, units: string[] = [], opts: NumberOpti
   let found = false;
   let wrong: { n: number; unit: string } | null = null;
   let unitEnd = 0; // the number of another unit is read after the fact's last unit: "30 minutes, not 2 hours" has none
+  let hedged = false; // two numbers before one unit joined by a hedge ("30 or 40 minutes")
+  const perUnit: number[] = []; // the number said with each mention of the unit ("30 minutes ... 45 minutes")
   for (let i = 0; i < tokens.length; i++) {
     const ut = unitTokens.find((u) => phraseAt(tokens, i, u));
     if (ut) {
@@ -147,6 +164,8 @@ export function parseNumber(text: string, units: string[] = [], opts: NumberOpti
         found = true;
         nums.push(...near.nums);
         vague ||= near.vague;
+        if (near.nums.length) perUnit.push(near.nums[near.nums.length - 1]);
+        if (new Set(near.nums).size > 1 && tokens.slice(Math.max(0, i - 3), i).some((w) => HEDGE_WORDS.has(w))) hedged = true;
       }
       continue;
     }
@@ -157,13 +176,18 @@ export function parseNumber(text: string, units: string[] = [], opts: NumberOpti
     }
   }
   // A length in the fact's unit and one in another unit ("30 minutes or 2 hours") are two lengths: not clear.
-  if (found) return wrong ? { kind: "ambiguous" } : decide(nums, vague);
-  if (wrong) return { kind: "wrong_unit", ...wrong };
-  if (opts.rangeSpanMinutes && times.ranges.length === 1) return { kind: "value", n: times.ranges[0].span };
+  if (found) {
+    if (wrong) return res({ kind: "ambiguous" }, true);
+    return res(decide(nums, vague), vague || hedged || new Set(perUnit).size > 1);
+  }
+  if (wrong) return res({ kind: "wrong_unit", ...wrong });
+  if (opts.rangeSpanMinutes && times.ranges.length === 1) return res({ kind: "value", n: times.ranges[0].span });
   const all = scanNumbers(tokens, 0, tokens.length);
   const bare = decide(all.nums, all.vague);
-  if (units.length && !opts.bareNumberOk && bare.kind === "value") return { kind: "ambiguous" };
-  return bare;
+  // No number with the unit: if the unit was said, its number was taken back ("not 30 minutes").
+  const unitSaid = unitTokens.some((u) => tokens.some((_, k) => phraseAt(tokens, k, u)));
+  if (units.length && !opts.bareNumberOk && bare.kind === "value") return res({ kind: "ambiguous" }, unitSaid);
+  return res(bare, unitSaid || all.vague);
 }
 
 // ---------- times ----------
@@ -220,10 +244,11 @@ function hourAt(tokens: string[], i: number): { h: number; m: number; len: numbe
   if (/^\d{1,2}$/.test(t)) h = Number(t);
   else if (t in HOUR_WORDS) h = HOUR_WORDS[t];
   if (h === null || h > 23) return null;
+  // "at 2, 30 minutes" / "at 2, thirty minutes": a number followed by a count unit is a length, not the minutes.
   for (const [seq, m] of MINUTE_WORDS) {
-    if (startsAt(tokens, i + 1, seq)) return { h, m, len: 1 + seq.length, colon: false, lead0: false };
+    if (startsAt(tokens, i + 1, seq) && !NOT_TIME_NEXT.has(tokens[i + 1 + seq.length] ?? "")) return { h, m, len: 1 + seq.length, colon: false, lead0: false };
   }
-  if (/^\d{1,2}$/.test(t) && /^\d{2}$/.test(tokens[i + 1] ?? "") && Number(tokens[i + 1]) < 60 && tokens[i + 1].length === 2) {
+  if (/^\d{1,2}$/.test(t) && /^\d{2}$/.test(tokens[i + 1] ?? "") && Number(tokens[i + 1]) < 60 && tokens[i + 1].length === 2 && !NOT_TIME_NEXT.has(tokens[i + 2] ?? "")) {
     // "10 30" (from "10.30" or "10-30")
     return { h, m: Number(tokens[i + 1]), len: 2, colon: false, lead0: false };
   }
@@ -369,7 +394,8 @@ function scanTimes(tokens: string[]): { definite: DefiniteHit[]; bare: BareHit[]
     }
     if (hr.h < 1 || hr.h > 12) continue;
     const oclock = tokens[after] === "oclock";
-    const prep = i > 0 && TIME_PREPS.has(tokens[i - 1]);
+    // "at 2", and a bare hour right after a day ("Wednesday 2, 30 minutes"), are a clock time.
+    const prep = i > 0 && (TIME_PREPS.has(tokens[i - 1]) || tokens[i - 1] in DAY_WORDS);
     const whole = tokens.length === hr.len;
     const nextIsCount = NOT_TIME_NEXT.has(tokens[after] ?? "");
     if (hr.colon || oclock || whole || (prep && !nextIsCount)) {

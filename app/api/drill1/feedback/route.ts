@@ -2,8 +2,7 @@ import { getAnthropic, MODEL } from "@/lib/ai";
 import { GuardError, guardResponse, readJsonBody } from "@/lib/ai-guard";
 import { attempts, FEEDBACK_PER_ATTEMPT } from "@/lib/drill1/attempts";
 import { MAX_TRANSCRIPT_CHARS, MIN_WORDS, runChecks } from "@/lib/drill1/checks";
-import { buildFeedback, FEEDBACK_SCHEMA, FEEDBACK_SYSTEM, feedbackUserMessage, validateAi, type AiFeedback, type ValidatedAi } from "@/lib/drill1/feedback";
-import { situationText } from "@/lib/drill1/questions";
+import { buildFeedback, FEEDBACK_SCHEMA, FEEDBACK_SYSTEM, feedbackUserMessage, givenText, validateAi, type AiFeedback, type ValidatedAi } from "@/lib/drill1/feedback";
 import { getAnyQuestion } from "@/lib/drill1/roles";
 import { getGuestId } from "@/lib/guest";
 import { takeAiBudget } from "@/lib/limits";
@@ -81,7 +80,7 @@ export async function POST(request: Request) {
         let next: ValidatedAi = { ai: null, issues: ["no text"] };
         if (out && out.type === "text") {
           try {
-            next = validateAi(JSON.parse(out.text), graded, situationText(question));
+            next = validateAi(JSON.parse(out.text), graded, givenText(question));
           } catch {
             next = { ai: null, issues: ["not JSON"] };
           }

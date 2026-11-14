@@ -9,6 +9,7 @@ import {
   findSpan,
   guardStrongerVersion,
   normalizeAi,
+  givenText,
   NOT_ENGLISH_NOTE,
   validateAi,
 } from "../feedback";
@@ -211,9 +212,39 @@ describe("the question's situation (5b)", () => {
   });
 });
 
+describe("facts the question itself gave (B-R12-03)", () => {
+  const q = {
+    context: "Release sync. The QA lead asks:",
+    text: "Should we roll Android 14 back to 13 before the 3.2 release on Friday?",
+    situation: ["Crash rate on Android 14 is 4%."],
+  };
+  const raw = {
+    english: true,
+    answerFirst: { verdict: "yes", evidenceQuote: "roll Android 14 back to 13", note: "ok" },
+    structure: { point: { present: true, quote: "Android 14" }, reason: { present: false, quote: "" }, nextStep: { present: false, quote: "" } },
+    strongerVersion: "Yes, roll Android 14 back to 13 before the 3.2 release on Friday: crashes are at 4%.",
+    tip: "t",
+  };
+  it("givenText joins the context line, the question and its situation", () => {
+    expect(givenText(q)).toBe(`${q.context}\n${q.text}\n${q.situation[0]}`);
+    expect(givenText({ context: "", text: "Ready?", situation: undefined })).toBe("Ready?");
+  });
+  it("the stronger version keeps the question's numbers and days, but not new ones", () => {
+    const v = validateAi(raw, "yes we should roll back, it keeps crashing", givenText(q));
+    expect(v.ai!.strongerVersion).toBe(raw.strongerVersion);
+    expect(v.issues).not.toContain("strongerVersion: new number or day");
+    expect(guardStrongerVersion("Roll back to 12 by Monday.", "yes roll back", givenText(q))).toBe("Roll back to [your number] by [the date].");
+  });
+  it("evidence quotes still come from the transcript only, never the question", () => {
+    const v = validateAi(raw, "yes we should roll back, it keeps crashing", givenText(q));
+    expect(v.ai!.answerFirst.evidenceQuote).toBeNull();
+    expect(v.ai!.structure.point.present).toBe(false);
+  });
+});
+
 describe("no invented facts (5d)", () => {
   it("the system prompt forbids facts outside the transcript and situation, and asks for conditional phrasing", () => {
-    expect(FEEDBACK_SYSTEM).toMatch(/never invent facts that are not in the transcript or the situation/);
+    expect(FEEDBACK_SYSTEM).toMatch(/never invent facts that are not in the transcript, the question or the situation/);
     expect(FEEDBACK_SYSTEM).toMatch(/conditional phrasing/);
     expect(FEEDBACK_SYSTEM).toMatch(/\[placeholder\]/);
     expect(FEEDBACK_SYSTEM).toMatch(/If the client hasn't replied yet/);

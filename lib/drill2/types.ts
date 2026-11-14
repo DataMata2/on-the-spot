@@ -136,7 +136,7 @@ export interface Slot {
   /** The time read, and the relation word in front of it ("after", "by"). */
   time?: { kind: "definite" | "bare" | "ambiguous" | "vague" | "none"; minutes?: number; relation: "before" | "by" | "after" | "from" | "none" };
   /** The number read, and whether its unit fits ("30 seconds" for minutes is "wrong"). */
-  count?: { kind: "value" | "wrong_unit" | "ambiguous" | "none"; value?: number; unit?: string };
+  count?: { kind: "value" | "wrong_unit" | "ambiguous" | "none"; value?: number; unit?: string; alt?: boolean };
   day?: { kind: "value" | "ambiguous" | "vague" | "none"; value?: Weekday };
 }
 
