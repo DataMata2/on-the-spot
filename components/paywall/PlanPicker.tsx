@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { buttonClasses } from "@/components/kit/Button";
 import { cx } from "@/components/kit/cx";
 import { DEFAULT_PLAN, formatUsd, PLANS, yearlySavingsPercent, type PlanId } from "@/lib/plans";
@@ -30,6 +30,15 @@ export function PlanPicker({ defaultPlan = DEFAULT_PLAN }: { defaultPlan?: PlanI
   const [plan, setPlan] = useState<PlanId>(defaultPlan);
   const [submitting, setSubmitting] = useState(false);
   const savings = yearlySavingsPercent();
+
+  // Coming back with the browser's Back button (bfcache) must not leave the button stuck on "Opening…".
+  useEffect(() => {
+    const onShow = (e: PageTransitionEvent) => {
+      if (e.persisted) setSubmitting(false);
+    };
+    window.addEventListener("pageshow", onShow);
+    return () => window.removeEventListener("pageshow", onShow);
+  }, []);
 
   return (
     <form action="/api/checkout" method="post" onSubmit={() => setSubmitting(true)} className="flex flex-col gap-4">

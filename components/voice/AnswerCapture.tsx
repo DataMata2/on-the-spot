@@ -1,8 +1,11 @@
 "use client";
 // One answer, spoken or typed. Voice when the browser supports it and the mic is allowed; "Type instead" is
 // always offered, and becomes the only option when speech recognition is missing (Firefox) or denied.
+// A recording that ends on its own (the 45 s cap, the engine giving up, an error) is handed on as if the user
+// had tapped stop, so the words are not lost when the next tap starts a new recording.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { autoStopAction, autoStopNotice, TIME_UP_NOTICE_MS } from "./autoStop";
 import { PushToTalk } from "./PushToTalk";
 import type { SpeechToText } from "./useSpeechToText";
 
@@ -37,18 +40,51 @@ export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, max
   const [typing, setTyping] = useState(Boolean(preferTyping));
   const [typed, setTyped] = useState("");
   const [heardNothing, setHeardNothing] = useState(false);
+  // Endings that happened before this box mounted belong to an earlier capture.
+  const [mountedAfter] = useState(() => stt.ended?.session ?? 0);
+  // The session already handed to onCaptured (by handleStop or the auto-stop effect): never twice.
+  const handledRef = useRef<number | null>(null);
+  const [delivered, setDelivered] = useState<number | null>(null);
+  const onCapturedRef = useRef(onCaptured);
+  useEffect(() => {
+    onCapturedRef.current = onCaptured;
+  }, [onCaptured]);
+
+  const autoAction = autoStopAction(stt.ended, { mountedAfter, handled: null });
+  const autoNotice = autoAction !== "ignore" && !stt.listening ? autoStopNotice(stt.ended, stt.maxMs) : null;
+  const capturePending = autoAction === "capture" && !stt.listening && delivered !== stt.ended?.session;
+
+  useEffect(() => {
+    const end = stt.ended;
+    if (autoStopAction(end, { mountedAfter, handled: handledRef.current }) !== "capture" || !end) return;
+    // Leave the time's-up notice on screen for a moment before moving on.
+    const t = setTimeout(() => {
+      if (handledRef.current === end.session) return;
+      handledRef.current = end.session;
+      setDelivered(end.session);
+      onCapturedRef.current({ raw: end.text, mode: "voice" });
+    }, end.reason === "max" ? TIME_UP_NOTICE_MS : 0);
+    return () => clearTimeout(t);
+  }, [stt.ended, mountedAfter]);
 
   const forcedTyping = !stt.supported || stt.error === "mic_denied" || stt.error === "no_mic";
   const showTyping = typing || forcedTyping;
 
   const switchMode = (toTyping: boolean) => {
-    if (stt.listening) void stt.stop();
+    if (stt.ended) handledRef.current = stt.ended.session; // switching mode drops a pending auto-capture
+    if (stt.listening) {
+      handledRef.current = stt.session;
+      void stt.stop();
+    }
     setTyping(toTyping);
     onModeChange?.(toTyping ? "typed" : "voice");
   };
 
   const handleStop = async () => {
+    const session = stt.session;
     const text = await stt.stop();
+    if (handledRef.current === session) return;
+    handledRef.current = session;
     if (!text.trim()) {
       setHeardNothing(true);
       return;
@@ -61,6 +97,7 @@ export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, max
 
   return (
     <div className="flex flex-col gap-4">
+      {autoNotice && <p className="rounded-md bg-amber-soft px-3 py-2 text-sm text-amber" role="status">{autoNotice}</p>}
       {notice && <p className="rounded-md bg-amber-soft px-3 py-2 text-sm text-amber">{notice}</p>}
       {errorText && <p className="rounded-md bg-amber-soft px-3 py-2 text-sm text-amber" role="alert">{errorText}</p>}
 
@@ -103,6 +140,7 @@ export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, max
             listening={stt.listening}
             elapsedMs={stt.elapsedMs}
             maxMs={stt.maxMs}
+            disabled={capturePending}
             onStart={() => {
               setHeardNothing(false);
               stt.start();
@@ -115,7 +153,7 @@ export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, max
                 {stt.transcript} <span className="text-ink-3">{stt.interim}</span>
               </>
             ) : (
-              <span className="text-ink-3">{stt.listening ? "Start talking. Your words appear here." : heardNothing ? "We didn't hear anything. Try again, or type instead." : "Your words will appear here."}</span>
+              <span className="text-ink-3">{stt.listening ? "Start talking. Your words appear here." : heardNothing || autoAction === "heard_nothing" ? "We didn't hear anything. Try again, or type instead." : "Your words will appear here."}</span>
             )}
           </div>
           <button type="button" onClick={() => switchMode(true)} className="text-sm font-semibold text-accent hover:underline">

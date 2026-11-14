@@ -9,7 +9,7 @@ import { isProRequest } from "@/lib/pro";
 
 export const metadata: Metadata = {
   title: "Pricing — On the Spot",
-  description: "Free: 3 spoken drills a day. Pro: unlimited drills, Clarify the vague task, a daily plan. $12/month or $79/year.",
+  description: "Free: 3 spoken drills a day. Pro: unlimited drills, Clarify the vague task, Rehearse my real meeting, a daily plan. $12/month or $79/year.",
 };
 
 const FREE = ["3 drills a day", "One try of Clarify the vague task", "Your progress, saved in this browser"];
@@ -19,17 +19,37 @@ async function PlanArea() {
     return (
       <section className="w-full max-w-md rounded-lg border border-accent-mid/50 bg-accent-soft p-6 text-center">
         <h2 className="text-xl font-bold text-ink">You&apos;re on Pro</h2>
-        <p className="mt-2 text-sm text-ink-2">Unlimited drills and Clarify the vague task are unlocked in this browser.</p>
-        <Link href="/drill" className={buttonClasses({ className: "mt-5" })}>
-          Start a drill
-        </Link>
+        <p className="mt-2 text-sm text-ink-2">
+          Unlimited drills, Clarify the vague task and Rehearse my real meeting are unlocked in this browser.
+        </p>
+        <div className="mt-5 flex flex-wrap justify-center gap-3">
+          <Link href="/drill" className={buttonClasses({})}>
+            Start a drill
+          </Link>
+          <Link href="/rehearse" className={buttonClasses({ variant: "secondary" })}>
+            Rehearse my real meeting
+          </Link>
+        </div>
       </section>
     );
   }
   return <Paywall />;
 }
 
-export default function PricingPage() {
+type SearchParams = Promise<{ error?: string | string[] }>;
+
+/** /api/checkout sends a failed form checkout back here with ?error=checkout. */
+async function CheckoutError({ searchParams }: { searchParams: SearchParams }) {
+  const { error } = await searchParams;
+  if (error !== "checkout") return null;
+  return (
+    <p role="alert" className="mx-auto w-full max-w-md rounded-md bg-amber-soft px-4 py-3 text-center text-sm text-amber">
+      Checkout couldn&apos;t start. Please try again.
+    </p>
+  );
+}
+
+export default function PricingPage({ searchParams }: { searchParams: SearchParams }) {
   return (
     <>
       <SiteHeader />
@@ -43,6 +63,10 @@ export default function PricingPage() {
             Short spoken drills for real work moments. Start free; go Pro when you want to practice every day.
           </p>
         </div>
+
+        <Suspense fallback={null}>
+          <CheckoutError searchParams={searchParams} />
+        </Suspense>
 
         <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start lg:justify-center">
           <Suspense fallback={<Paywall />}>

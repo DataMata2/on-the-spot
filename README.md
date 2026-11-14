@@ -63,7 +63,7 @@ API:
   `payment_status=paid` and `metadata.guestId` equal to the guest cookie. A query parameter alone never grants
   Pro. `isProRequest()` in `lib/pro.ts` verifies it. Pro is tied to the browser that paid.
 - Limits (`lib/limits.ts`, in memory, reset on restart): free guests get 3 drill-1 starts per UTC day and one
-  drill-2 try; AI calls are capped per guest (60/h), per IP (400/h) and globally (2000/h).
+  drill-2 try; AI calls are capped per guest (60/h), per IP (1500/h) and globally (3000/h).
 
 ## Stripe (test mode only)
 

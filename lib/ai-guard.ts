@@ -97,14 +97,24 @@ export class AiLimits {
 /** One set of limits for every AI route in this process. */
 export const aiLimits = new AiLimits();
 
-/** The caller's IP from the proxy headers, or "unknown" (all unknown callers share one budget). */
+/**
+ * The caller's IP from the proxy headers, or "unknown" (all unknown callers share one budget).
+ * Order: cf-connecting-ip (set by Cloudflare, not client-controlled), then x-real-ip (set by our proxy),
+ * then the LAST X-Forwarded-For hop (the one our nearest proxy appended; earlier hops are client-supplied
+ * and spoofable).
+ */
 export function clientIp(headers: Headers): string {
+  const cf = headers.get("cf-connecting-ip")?.trim();
+  if (cf) return cf;
+  const real = headers.get("x-real-ip")?.trim();
+  if (real) return real;
   const forwarded = headers.get("x-forwarded-for");
   if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
+    const hops = forwarded.split(",").map((h) => h.trim()).filter(Boolean);
+    const last = hops[hops.length - 1];
+    if (last) return last;
   }
-  return headers.get("x-real-ip")?.trim() || "unknown";
+  return "unknown";
 }
 
 /**

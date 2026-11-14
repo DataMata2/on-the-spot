@@ -11,6 +11,6 @@ export function getAnthropic(): Anthropic {
   if (client) return client;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
-  client = new Anthropic({ apiKey });
+  client = new Anthropic({ apiKey, timeout: 25_000, maxRetries: 1 });
   return client;
 }

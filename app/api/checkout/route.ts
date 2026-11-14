@@ -2,7 +2,7 @@ import { getOrCreateGuestId } from "@/lib/guest";
 import { isProRequest } from "@/lib/pro";
 import { createCheckoutSession, DEFAULT_PLAN, getOrigin, isPlanId, type PlanId } from "@/lib/stripe";
 
-/** POST /api/checkout: form ({plan}) → 303 to Stripe; JSON ({plan}) → { url }. */
+/** POST /api/checkout: form ({plan}) → 303 to Stripe (or to /pricing?error=checkout on failure); JSON ({plan}) → { url }. */
 export async function POST(req: Request) {
   const isJson = (req.headers.get("content-type") ?? "").includes("application/json");
   let plan: unknown = DEFAULT_PLAN;
@@ -17,9 +17,11 @@ export async function POST(req: Request) {
   } catch {
     // fall through with default plan
   }
-  if (!isPlanId(plan)) return Response.json({ error: "Unknown plan" }, { status: 400 });
-
   const origin = getOrigin(req);
+  // A plain form POST navigates the page, so an error goes back to /pricing with a friendly message, not raw JSON.
+  const formError = () => Response.redirect(`${origin}/pricing?error=checkout`, 303);
+  if (!isPlanId(plan)) return isJson ? Response.json({ error: "Unknown plan" }, { status: 400 }) : formError();
+
   try {
     const guestId = await getOrCreateGuestId();
     // Already Pro in this browser: nothing to buy, go practice.
@@ -31,6 +33,6 @@ export async function POST(req: Request) {
     return isJson ? Response.json({ url: session.url }) : Response.redirect(session.url, 303);
   } catch (err) {
     console.error("POST /api/checkout failed:", err instanceof Error ? err.message : err);
-    return Response.json({ error: "Could not start checkout" }, { status: 500 });
+    return isJson ? Response.json({ error: "Could not start checkout" }, { status: 500 }) : formError();
   }
 }

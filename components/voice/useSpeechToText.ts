@@ -7,6 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useClientValue } from "./useClientValue";
+import type { EndReason, RecordingEnd } from "./autoStop";
 
 export type SttError = "unsupported" | "mic_denied" | "no_mic" | "network" | "other";
 
@@ -22,10 +23,14 @@ export interface SpeechToText {
   /** Milliseconds since start() while listening. */
   elapsedMs: number;
   maxMs: number;
+  /** Increments on every start(); identifies the current recording. */
+  session: number;
+  /** How the last recording ended (null while none has ended since the last reset). */
+  ended: RecordingEnd | null;
   start(): void;
   /** Stop and resolve with the full transcript (pending interim text included). */
   stop(): Promise<string>;
-  /** Clear transcript and error. */
+  /** Stop any recording without keeping it, and clear transcript, error and the last ending. */
   reset(): void;
 }
 
@@ -65,6 +70,8 @@ export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { ma
   const [interim, setInterim] = useState("");
   const [error, setError] = useState<SttError | null>(null);
   const [elapsedMs, setElapsedMs] = useState(0);
+  const [session, setSession] = useState(0);
+  const [ended, setEnded] = useState<RecordingEnd | null>(null);
 
   const recRef = useRef<Recognition | null>(null);
   const activeRef = useRef(false);
@@ -77,6 +84,8 @@ export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { ma
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const waitersRef = useRef<((t: string) => void)[]>([]);
   const launchRef = useRef<() => boolean>(() => false); // for the restart inside onend
+  const sessionRef = useRef(0);
+  const endReasonRef = useRef<EndReason | null>(null); // why the current recording is ending
 
   const clearTimers = () => {
     if (maxTimerRef.current) clearTimeout(maxTimerRef.current);
@@ -97,6 +106,8 @@ export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { ma
     setTranscript(full);
     setInterim("");
     setListening(false);
+    setEnded({ session: sessionRef.current, reason: endReasonRef.current ?? "auto", text: full });
+    endReasonRef.current = null;
     const waiters = waitersRef.current;
     waitersRef.current = [];
     waiters.forEach((w) => w(full));
@@ -131,6 +142,7 @@ export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { ma
       const code = e.error;
       if (code === "no-speech" || code === "aborted") return; // onend follows; restart handles it
       activeRef.current = false;
+      endReasonRef.current ??= "error";
       setError(code === "not-allowed" || code === "service-not-allowed" ? "mic_denied" : code === "audio-capture" ? "no_mic" : code === "network" ? "network" : "other");
     };
     rec.onend = () => {
@@ -147,6 +159,7 @@ export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { ma
         if (!launchRef.current()) finalize();
         return;
       }
+      if (now - startedAtRef.current >= maxMs) endReasonRef.current ??= "max";
       finalize();
     };
     recRef.current = rec;
@@ -163,10 +176,11 @@ export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { ma
     launchRef.current = launch;
   }, [launch]);
 
-  const stop = useCallback((): Promise<string> => {
+  const stopWith = useCallback((reason: EndReason): Promise<string> => {
     activeRef.current = false;
     const rec = recRef.current;
     if (!rec) return Promise.resolve(committedRef.current);
+    endReasonRef.current ??= reason;
     return new Promise<string>((resolve) => {
       waitersRef.current.push(resolve);
       try {
@@ -188,6 +202,8 @@ export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { ma
     });
   }, [finalize]);
 
+  const stop = useCallback(() => stopWith("user"), [stopWith]);
+
   const start = useCallback(() => {
     if (!getCtor()) {
       setError("unsupported");
@@ -198,6 +214,10 @@ export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { ma
     sessionFinalRef.current = "";
     interimRef.current = "";
     restartsRef.current = [];
+    endReasonRef.current = null;
+    sessionRef.current += 1;
+    setSession(sessionRef.current);
+    setEnded(null);
     setTranscript("");
     setInterim("");
     setError(null);
@@ -211,11 +231,30 @@ export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { ma
     }
     setListening(true);
     tickRef.current = setInterval(() => setElapsedMs(Date.now() - startedAtRef.current), 200);
-    maxTimerRef.current = setTimeout(() => void stop(), maxMs);
-  }, [launch, maxMs, stop]);
+    maxTimerRef.current = setTimeout(() => void stopWith("max"), maxMs);
+  }, [launch, maxMs, stopWith]);
 
   const reset = useCallback(() => {
+    // Abort a running recording so its words can't carry over into the next capture.
+    activeRef.current = false;
+    clearTimers();
+    const rec = recRef.current;
+    recRef.current = null; // handlers of the aborted session are ignored from here on
+    try {
+      rec?.abort();
+    } catch {
+      /* ignore */
+    }
     committedRef.current = "";
+    sessionFinalRef.current = "";
+    interimRef.current = "";
+    restartsRef.current = [];
+    endReasonRef.current = null;
+    const waiters = waitersRef.current;
+    waitersRef.current = [];
+    waiters.forEach((w) => w(""));
+    setListening(false);
+    setEnded(null);
     setTranscript("");
     setInterim("");
     setError(null);
@@ -237,5 +276,5 @@ export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { ma
     [],
   );
 
-  return { supported, listening, transcript, interim, error, elapsedMs, maxMs, start, stop, reset };
+  return { supported, listening, transcript, interim, error, elapsedMs, maxMs, session, ended, start, stop, reset };
 }

@@ -7,8 +7,8 @@ export { FREE_DRILLS_PER_DAY } from "@/lib/limits-core";
 
 /** AI calls per hour: per guest, per IP, for the whole process. */
 export const AI_GUEST_PER_HOUR = 60;
-export const AI_IP_PER_HOUR = 400;
-export const AI_GLOBAL_PER_HOUR = 2000;
+export const AI_IP_PER_HOUR = 1500;
+export const AI_GLOBAL_PER_HOUR = 3000;
 
 const aiBudget = new AiLimits(
   new RateLimiter(AI_GUEST_PER_HOUR),
@@ -17,7 +17,7 @@ const aiBudget = new AiLimits(
 );
 const drills = new DrillLimits();
 
-/** AI-call budget: per guest 60/h, per IP 400/h, global 2000/h (reuse lib/ai-guard.ts AiLimits). */
+/** AI-call budget: per guest 60/h, per IP 1500/h (venue Wi-Fi shares one IP), global 3000/h (reuse lib/ai-guard.ts AiLimits). */
 export function takeAiBudget(req: Request, guestId: string | null): LimitResult {
   if (aiBudget.take({ guestId, ip: clientIp(req.headers) })) return { ok: true };
   return { ok: false, status: 429, error: RATE_LIMITED_MESSAGE, code: "rate_limited" };
