@@ -74,20 +74,28 @@ async function PlanArea() {
   );
 }
 
-/** Desktop-only stage: the yearly price as a scalloped sticker, a cobalt orb and the proud blob. */
-function PriceStage() {
+const PRICE_STAGE = "relative hidden h-[300px] lg:col-start-1 lg:row-start-2 lg:block";
+
+/**
+ * Desktop-only stage: the yearly price as a scalloped sticker, a cobalt orb and the proud blob. Pro users keep
+ * the orb and blob but not the price sticker (no sales pitch to someone who already pays).
+ */
+async function PriceStage() {
+  const pro = await isProRequest();
   const savings = yearlySavingsPercent();
   return (
-    <div aria-hidden="true" className="relative hidden h-[300px] lg:col-start-1 lg:row-start-2 lg:block">
+    <div aria-hidden="true" className={PRICE_STAGE}>
       <div className="absolute top-0 left-[120px] size-[280px] rounded-full bg-cobalt" />
       <Blob state="proud" size={96} body="var(--color-ink)" face="var(--color-paper)" bob className="absolute -top-2 left-[350px]" />
-      <Sticker tone="tomato" size={240} className="absolute! top-8 left-5">
-        <b className="type-display text-[60px] leading-[0.95]">{formatUsd(PLANS.yearly.amountCents)}</b>
-        <span className="type-label mt-1.5">a year</span>
-        {savings > 0 && (
-          <span className="mt-2 rounded-pill bg-ink px-2.5 py-0.5 text-[13px] font-bold text-paper">save {savings}%</span>
-        )}
-      </Sticker>
+      {!pro && (
+        <Sticker tone="tomato" size={240} className="absolute! top-8 left-5">
+          <b className="type-display text-[60px] leading-[0.95]">{formatUsd(PLANS.yearly.amountCents)}</b>
+          <span className="type-label mt-1.5">a year</span>
+          {savings > 0 && (
+            <span className="mt-2 rounded-pill bg-ink px-2.5 py-0.5 text-[13px] font-bold text-paper">save {savings}%</span>
+          )}
+        </Sticker>
+      )}
     </div>
   );
 }
@@ -129,7 +137,9 @@ export default function PricingPage({ searchParams }: { searchParams: SearchPara
             </Suspense>
           </div>
 
-          <PriceStage />
+          <Suspense fallback={<div aria-hidden="true" className={PRICE_STAGE} />}>
+            <PriceStage />
+          </Suspense>
 
           <Suspense
             fallback={

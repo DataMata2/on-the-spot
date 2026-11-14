@@ -632,7 +632,7 @@ function MicGlyph() {
 function Loading({ text }: { text: string }) {
   return (
     <div className="flex items-center justify-center gap-3 py-10 font-semibold text-field-muted" role="status">
-      <span className="size-5 animate-spin rounded-full border-[3px] border-field-mark border-t-transparent" aria-hidden="true" />
+      <span className="size-5 motion-safe:animate-spin rounded-full border-[3px] border-field-mark border-t-transparent" aria-hidden="true" />
       {text}
     </div>
   );

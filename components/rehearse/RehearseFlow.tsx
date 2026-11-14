@@ -159,7 +159,7 @@ export function RehearseFlow() {
             >
               {generating ? "Writing your questions…" : `Get my ${REHEARSE_COUNT} questions`}
             </button>
-            {generating && <span className="size-4 animate-spin rounded-full border-2 border-accent border-t-transparent" role="status" aria-label="Writing your questions" />}
+            {generating && <span className="size-4 motion-safe:animate-spin rounded-full border-2 border-accent border-t-transparent" role="status" aria-label="Writing your questions" />}
           </div>
         </PaperCard>
       </section>

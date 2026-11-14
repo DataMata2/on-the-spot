@@ -130,7 +130,7 @@ export function ProgressCard() {
                           : "shadow-[0_0_0_3px_var(--color-ink)]"
                         : d.count > 0
                           ? "bg-ink text-paper"
-                          : "shadow-[inset_0_0_0_2px_rgb(16_14_23/0.35)]")
+                          : "shadow-[inset_0_0_0_2px_rgb(16_14_23/0.55)]")
                     }
                     aria-label={`${d.day}: ${d.count} drill${d.count === 1 ? "" : "s"}`}
                   >

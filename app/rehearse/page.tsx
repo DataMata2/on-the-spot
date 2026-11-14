@@ -78,7 +78,7 @@ export default function RehearsePage() {
           fallback={
             <RehearseField>
               <div className="flex items-center justify-center gap-3 py-10 text-field-muted" role="status">
-                <span className="size-4 animate-spin rounded-full border-2 border-field-mark border-t-transparent" aria-hidden="true" />
+                <span className="size-4 motion-safe:animate-spin rounded-full border-2 border-field-mark border-t-transparent" aria-hidden="true" />
                 Loading…
               </div>
             </RehearseField>

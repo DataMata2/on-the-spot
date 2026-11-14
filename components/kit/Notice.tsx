@@ -30,7 +30,11 @@ const TONES: Record<NoticeTone, string> = {
 export function Notice({ tone = "info", label, className, children, ...rest }: NoticeProps) {
   return (
     <div className={cx("px-4 py-3.5 text-[0.9375rem] leading-normal sm:px-5", TONES[tone], className)} {...rest}>
-      {label && <span className="type-label mb-1 block text-[0.6875rem] text-ink-2">{label}</span>}
+      {label && (
+        <span className={cx("type-label mb-1 block text-[0.6875rem]", tone === "dashed" ? "text-field-muted" : "text-ink-2")}>
+          {label}
+        </span>
+      )}
       {children}
     </div>
   );
