@@ -1,0 +1,29 @@
+import Link from "next/link";
+import { Wordmark } from "./Wordmark";
+
+export function Footer() {
+  return (
+    <footer className="mt-auto border-t border-line">
+      <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-8 text-sm text-ink-2 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+        <div className="flex flex-col gap-2">
+          <Wordmark className="text-base" />
+          <p className="max-w-md">
+            Short spoken drills for the moments English at work goes quiet. We never score your accent: only whether
+            your answer landed.
+          </p>
+        </div>
+        <nav aria-label="Footer" className="flex gap-4 sm:justify-end">
+          <Link href="/drill" className="hover:text-ink">
+            Practice
+          </Link>
+          <Link href="/progress" className="hover:text-ink">
+            Progress
+          </Link>
+          <Link href="/pricing" className="hover:text-ink">
+            Pricing
+          </Link>
+        </nav>
+      </div>
+    </footer>
+  );
+}

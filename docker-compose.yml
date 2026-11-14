@@ -1,15 +1,16 @@
+name: on-the-spot
+
 services:
   app:
-    container_name: zimran-app
+    container_name: on-the-spot-app
     build:
       context: .
       args:
         NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
-        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
     env_file: .env
     # Local runs publish a port; on the server Caddy reaches the container over the proxy network.
     ports:
-      - "127.0.0.1:${APP_PORT:-3100}:3000"
+      - "127.0.0.1:${APP_PORT:-3200}:3000"
     networks: [default, proxy]
     restart: unless-stopped
 
