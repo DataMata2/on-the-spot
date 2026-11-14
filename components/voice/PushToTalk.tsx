@@ -55,7 +55,7 @@ export function PushToTalk({ listening, onStart, onStop, elapsedMs, maxMs, disab
   const C = 2 * Math.PI * R;
 
   return (
-    <div className="mt-auto flex flex-col items-center gap-3 pt-4">
+    <div className="flex flex-col items-center gap-3 pt-4">
       <button
         type="button"
         disabled={disabled}

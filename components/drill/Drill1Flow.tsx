@@ -407,16 +407,19 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
 
   const showAsk = phase.k === "question" || phase.k === "think" || phase.k === "answer";
   const recording = phase.k === "answer" && stt.listening;
+  // Voice answer (mirrors AnswerCapture's typing/forcedTyping): the layout stays identical between idle and recording,
+  // so the mic never moves under a pressed pointer (hold-to-talk with a mouse has no pointer capture).
+  const voiceAnswer = phase.k === "answer" && !preferTyping && stt.supported && stt.error !== "mic_denied" && stt.error !== "no_mic";
   const isFeedback = phase.k === "feedback";
   // The question is the hero while it is read and thought about, smaller while answering, a reminder afterwards.
-  const qSize = phase.k === "question" || phase.k === "think" ? "big" : phase.k === "answer" && !recording ? "mid" : "small";
+  const qSize = phase.k === "question" || phase.k === "think" ? "big" : phase.k === "answer" && !voiceAnswer ? "mid" : "small";
   const centred = phase.k === "question" || phase.k === "think" || phase.k === "answer";
 
   return (
     <DrillField inherit={inherit} field={isFeedback ? "cobalt" : "night"} spotlight={isFeedback ? false : recording ? "rec" : true} wide={isFeedback}>
-      <section className={cx("flex flex-1 flex-col", recording ? "gap-4" : "gap-6")}>
+      <section className={cx("flex flex-1 flex-col", voiceAnswer ? "gap-4" : "gap-6")}>
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <span className="type-label rounded-pill bg-field-tint px-3 py-1.5 text-[0.6875rem] text-field-mark">
+          <span className={cx("type-label rounded-pill px-3 py-1.5 text-[0.6875rem] text-field-mark", isFeedback ? "shadow-[inset_0_0_0_1.5px_var(--field-line)]" : "bg-field-tint")}>
             {queue ? `Question ${queuePos} of ${queue.length} · ` : ""}
             {TYPE_LABELS[question.type]}
           </span>
@@ -460,7 +463,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
             </div>
           )}
           {showAsk && (
-            <div className={cx("mt-2 text-[0.9375rem]", recording && "[@media(max-height:700px)]:hidden")}>
+            <div className="mt-2 text-[0.9375rem]">
               {hintOpen ? (
                 <p className="mt-2 max-w-[60ch] rounded-chip bg-field-tint px-4 py-3 text-left text-field-fg">Hint: {TYPE_HINTS[question.type]}</p>
               ) : (
@@ -488,18 +491,18 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
           </button>
         )}
 
-        {recording && (
-          // Decorative: the button and its live region already say how long is left. Compact, so the mic does not
-          // move out of thumb reach when recording starts.
-          <div className="flex flex-col items-center gap-3" aria-hidden="true">
-            <p className="type-display text-[clamp(4.5rem,22vw,10rem)] leading-[0.9] [@media(max-height:700px)]:text-[3.5rem] whitespace-nowrap text-field-fg tabular-nums">
+        {voiceAnswer && (
+          // Decorative: the button and its live region already say how long is left. Its space is reserved for the
+          // whole voice answer (invisible until recording) so the mic does not move; on short screens it is dropped.
+          <div className={cx("flex flex-col items-center gap-3 [@media(max-height:700px)]:hidden", !recording && "invisible")} aria-hidden="true">
+            <p className="type-display text-[clamp(4.5rem,22vw,10rem)] leading-[0.9] whitespace-nowrap text-field-fg tabular-nums">
               {clock(stt.elapsedMs)}
               <span className="ml-1.5 font-mono text-base font-medium tracking-[0.04em] text-field-muted">/ {clock(stt.maxMs)}</span>
             </p>
             <div className="flex h-12 items-center gap-1 [@media(max-height:700px)]:hidden">
-              <Blob state="listening" size={36} bob className="mr-3" />
+              <Blob state="listening" size={36} bob={recording} className="mr-3" />
               {WAVE.map((h, i) => (
-                <i key={i} className={cx("w-[5px] rounded-full bg-tomato motion-safe:animate-wave", i >= 18 && "max-sm:hidden")} style={{ height: h * 0.8, animationDelay: `${-((i * 7) % 10) / 10}s` }} />
+                <i key={i} className={cx("w-[5px] rounded-full bg-tomato", recording && "motion-safe:animate-wave", i >= 18 && "max-sm:hidden")} style={{ height: h * 0.8, animationDelay: `${-((i * 7) % 10) / 10}s` }} />
               ))}
             </div>
           </div>

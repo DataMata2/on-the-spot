@@ -162,7 +162,7 @@ export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, max
             }}
             onStop={() => void handleStop()}
           />
-          <div className="order-first min-h-16 w-full max-w-[640px] rounded-chip border border-dashed border-field-line bg-field-tint px-4 py-3 text-base text-field-fg" aria-live="polite">
+          <div className="min-h-16 w-full max-w-[640px] rounded-chip border border-dashed border-field-line bg-field-tint px-4 py-3 text-base text-field-fg" aria-live="polite">
             {stt.transcribing ? (
               <span className="text-field-muted">
                 {live ? `${live} ` : ""}
