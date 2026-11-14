@@ -15,7 +15,8 @@ export interface RolePickerProps {
 
 const CHIP =
   "flex min-h-12 w-full items-center rounded-chip bg-field-tint px-4 py-2 text-left text-[0.9375rem] leading-tight font-semibold text-field-fg " +
-  "transition-shadow duration-150 hover:shadow-[inset_0_0_0_1px_var(--field-line)] aria-pressed:shadow-[inset_0_0_0_2px_var(--field-line)] sm:w-auto sm:px-5 sm:text-base";
+  "transition-[background-color,color,box-shadow] duration-150 hover:shadow-[inset_0_0_0_1px_var(--field-line)] active:bg-lemon active:text-ink " +
+  "aria-pressed:bg-lemon aria-pressed:text-ink aria-pressed:shadow-sticker-sm max-[359px]:px-3 max-[359px]:text-sm sm:w-auto sm:px-5 sm:text-base";
 
 export function RolePicker({ onPick, current }: RolePickerProps) {
   const [otherOpen, setOtherOpen] = useState(current?.id === "other");
