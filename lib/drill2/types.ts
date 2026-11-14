@@ -23,6 +23,8 @@ export type FactCheck =
       otherUnits?: string[];
       /** A bare number with no unit counts. Default false: with `units`, "30" alone is ambiguous. */
       bareNumberOk?: boolean;
+      /** A time range said with no length ("2 to 2:30 pm") counts as its span in minutes (a meeting's length). */
+      rangeSpanMinutes?: boolean;
     }
   | {
       kind: "time";

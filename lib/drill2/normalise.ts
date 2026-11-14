@@ -9,6 +9,9 @@ export function normaliseText(input: string): string {
   s = s.replace(/o'\s?clock/g, " oclock ");
   s = s.replace(/\b([ap])\s?\.\s?m\b\.?/g, " $1m ");
   s = s.replace(/&/g, " and ");
+  // A time range "2–2:30 pm", "2-2:30", "2 – 3 pm": the dash is "to". A plain "2-3" stays (a count range, "10-30").
+  s = s.replace(/(\d)\s*[–—]\s*(?=\d)/g, "$1 to ");
+  s = s.replace(/(\d)\s*-\s*(?=\d{1,2}(?::\d{2}|\s*[ap]\s?\.?\s?m\b))/g, "$1 to ");
   s = s.replace(/(\d)(am|pm)\b/g, "$1 $2");
   s = s.replace(/[^a-z0-9:\s]/g, " ");
   s = s.replace(/(?<!\d):|:(?!\d)/g, " ");
@@ -86,6 +89,11 @@ function decide(nums: number[], vague: boolean): NumberParse {
 }
 
 export interface NumberOptions {
+  /**
+   * A time range said with no length ("2 to 2:30 pm") counts as its span in minutes. Only for a length in minutes
+   * that goes with a meeting time.
+   */
+  rangeSpanMinutes?: boolean;
   /** Units of a different size: a number said with one of them is the wrong value ("30 seconds", "30 hours"). */
   otherUnits?: string[];
   /** A bare number with no unit counts as the value (only when the scenario says so). Default: ambiguous. */
@@ -104,12 +112,22 @@ function phraseAt(tokens: string[], i: number, phrase: string[]): boolean {
  * Without `units`, every number in the text counts, and two different ones are ambiguous.
  */
 export function parseNumber(text: string, units: string[] = [], opts: NumberOptions = {}): NumberParse {
-  const spoken = prepare(text)
+  // "0.5 hours", "1.5 hrs", ".5 h": a decimal number of hours is minutes (normalising would split "0.5" into 0 and 5).
+  const decimals = text.replace(/(\d*\.\d+)\s*(?:hours?|hrs?|hr|h)\b/gi, (m, x: string) => {
+    const mins = Number(x) * 60;
+    return Number.isInteger(mins) ? `${mins} minutes` : m;
+  });
+  const spoken = prepare(decimals)
     .replace(/\b(?:an |one )?hour and a half\b/g, "90 minutes")
     .replace(/\b(?:a )?half (?:an )?hour\b/g, "30 minutes")
     .replace(/\b(?:a|an|one) quarter (?:of an )?hour\b/g, "15 minutes")
     .replace(/\b(?:an|one) hour\b/g, "60 minutes");
   const tokens = spoken.split(" ").filter(Boolean);
+  // A clock time ("2 p.m.", "2:30", "at 2") is not the count: "at 2 p.m., 30 minutes" is 30 minutes.
+  const times = scanTimes(tokens);
+  const clock = new Set<number>();
+  for (const t of [...times.definite, ...times.bare, ...times.ranges]) for (let k = t.start; k < t.end; k++) clock.add(k);
+  const numbersNear = (from: number, to: number) => scanNumbers(tokens.map((w, k) => (clock.has(k) ? "" : w)), from, to);
   const unitTokens = units.map((u) => normaliseText(u).split(" "));
   const otherTokens = (opts.otherUnits ?? []).map((u) => normaliseText(u).split(" "));
   const nums: number[] = [];
@@ -119,7 +137,7 @@ export function parseNumber(text: string, units: string[] = [], opts: NumberOpti
   for (let i = 0; i < tokens.length; i++) {
     const ut = unitTokens.find((u) => phraseAt(tokens, i, u));
     if (ut) {
-      const near = scanNumbers(tokens, i - 3, i);
+      const near = numbersNear(i - 3, i);
       if (near.nums.length || near.vague) {
         found = true;
         nums.push(...near.nums);
@@ -129,12 +147,13 @@ export function parseNumber(text: string, units: string[] = [], opts: NumberOpti
     }
     const ot = otherTokens.find((u) => phraseAt(tokens, i, u));
     if (ot && !wrong) {
-      const near = scanNumbers(tokens, i - 2, i);
+      const near = numbersNear(i - 2, i);
       if (near.nums.length) wrong = { n: near.nums[near.nums.length - 1], unit: ot.join(" ") };
     }
   }
   if (found) return decide(nums, vague);
   if (wrong) return { kind: "wrong_unit", ...wrong };
+  if (opts.rangeSpanMinutes && times.ranges.length === 1) return { kind: "value", n: times.ranges[0].span };
   const all = scanNumbers(tokens, 0, tokens.length);
   const bare = decide(all.nums, all.vague);
   if (units.length && !opts.bareNumberOk && bare.kind === "value") return { kind: "ambiguous" };
@@ -217,27 +236,95 @@ const to24 = (h12: number, m: number, mer: "am" | "pm") => ((h12 % 12) + (mer ==
  * "10:00" are bare hours (am/pm unclear; the fact decides whether that is enough). "EOD" is vague. Two different
  * times are ambiguous.
  */
-export function parseTime(text: string): TimeParse {
+export function parseTime(text: string, opts: { range?: "start" | "end" } = {}): TimeParse {
   const tokens = prepare(text).split(" ").filter(Boolean);
-  const { definite, bare } = scanTimes(tokens);
-  return decideTime(tokens, definite.map((d) => d.minutes), bare);
+  const { definite, bare, ranges } = scanTimes(tokens);
+  const defs = definite.map((d) => d.minutes);
+  const bares = [...bare];
+  // A range ("2 to 2:30 pm") is one time: its start for a meeting time (default), its end for a deadline.
+  for (const r of ranges) {
+    const p = opts.range === "end" ? r.to : r.from;
+    if ("minutes" in p) defs.push(p.minutes);
+    else bares.push({ ...p, start: r.start, end: r.end });
+  }
+  return decideTime(tokens, defs, bares);
 }
 
-type BareHit = { hour12: number; minute: number; start: number };
+type BareHit = { hour12: number; minute: number; start: number; end: number };
+type DefiniteHit = { minutes: number; start: number; end: number };
+type RangePoint = { minutes: number } | { hour12: number; minute: number };
+/** "2 to 2:30 pm", "from 2 until 2:30", "between 2 and 2:30": tokens [start, end), its two ends and span in minutes. */
+type RangeHit = { from: RangePoint; to: RangePoint; span: number; start: number; end: number };
+
+/** Words joining the two ends of a time range ("and" only after "between"). The dash is "to" after normalising. */
+const RANGE_JOIN = new Set(["to", "till", "til", "until", "through", "thru"]);
+
+type ClockPoint = { h: number; m: number; mer: "am" | "pm" | null; clock: boolean; len: number };
+
+/** One end of a time range at token i: an hour, maybe with minutes, "o'clock" or am/pm. */
+function clockPointAt(tokens: string[], i: number): ClockPoint | null {
+  const hr = hourAt(tokens, i);
+  if (!hr) return null;
+  const after = i + hr.len;
+  const mer = meridiemAt(tokens, after);
+  if (mer) return hr.h >= 1 && hr.h <= 12 ? { h: hr.h, m: hr.m, mer: mer.mer, clock: true, len: hr.len + mer.len } : null;
+  if (hr.colon && (hr.h >= 13 || hr.h === 0 || hr.lead0)) return { h: hr.h, m: hr.m, mer: null, clock: true, len: hr.len };
+  if (hr.h < 1 || hr.h > 12) return null;
+  const oclock = tokens[after] === "oclock";
+  return { h: hr.h, m: hr.m, mer: null, clock: hr.colon || oclock, len: hr.len + (oclock ? 1 : 0) };
+}
+
+/** A time range starting at token i, or null. One end must be a clock time, or the range follows "from"/"between". */
+function rangeAt(tokens: string[], i: number): RangeHit | null {
+  const a = clockPointAt(tokens, i);
+  if (!a) return null;
+  const j = i + a.len;
+  const between = tokens[i - 1] === "between";
+  if (!(RANGE_JOIN.has(tokens[j]) || (between && tokens[j] === "and"))) return null;
+  const b = clockPointAt(tokens, j + 1);
+  if (!b) return null;
+  const end = j + 1 + b.len;
+  if (NOT_TIME_NEXT.has(tokens[end] ?? "")) return null; // "2 to 3 slides"
+  if (!a.clock && !b.clock && !between && tokens[i - 1] !== "from") return null;
+  // 24-hour ends (13:00) carry no meridiem: their hour is already the clock hour.
+  const is24 = (p: ClockPoint) => p.mer === null && (p.h >= 13 || p.h === 0);
+  let fromMin: number | null = null;
+  let toMin: number | null = null;
+  if (a.mer || is24(a)) fromMin = a.mer ? to24(a.h, a.m, a.mer) : a.h * 60 + a.m;
+  if (b.mer || is24(b)) toMin = b.mer ? to24(b.h, b.m, b.mer) : b.h * 60 + b.m;
+  // The am/pm said on one end carries to the other ("2 to 2:30 pm" starts at 2 pm; "11 to 1 pm" starts at 11 am).
+  if (fromMin === null && toMin !== null) {
+    fromMin = (a.h % 12) * 60 + a.m + (toMin >= 720 ? 720 : 0);
+    if (fromMin > toMin) fromMin -= 720;
+    if (fromMin < 0) fromMin = null;
+  } else if (toMin === null && fromMin !== null) {
+    toMin = (b.h % 12) * 60 + b.m + (fromMin >= 720 ? 720 : 0);
+    if (toMin <= fromMin) toMin += 720;
+  }
+  let span: number;
+  if (fromMin !== null && toMin !== null) span = toMin - fromMin;
+  else {
+    span = ((b.h % 12) * 60 + b.m - ((a.h % 12) * 60 + a.m) + 720) % 720;
+  }
+  if (span <= 0 || span > 720) return null;
+  const point = (p: ClockPoint, min: number | null): RangePoint => (min !== null && min < 1440 ? { minutes: min } : { hour12: p.h, minute: p.m });
+  return { from: point(a, fromMin), to: point(b, toMin), span, start: i, end };
+}
 
 /** Every time expression in the tokens, with the index of its first token. */
-function scanTimes(tokens: string[]): { definite: { minutes: number; start: number }[]; bare: BareHit[] } {
-  const definite: { minutes: number; start: number }[] = [];
+function scanTimes(tokens: string[]): { definite: DefiniteHit[]; bare: BareHit[]; ranges: RangeHit[] } {
+  const definite: DefiniteHit[] = [];
   const bare: BareHit[] = [];
+  const ranges: RangeHit[] = [];
 
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
     if (t === "noon" || t === "midday") {
-      definite.push({ minutes: 720, start: i });
+      definite.push({ minutes: 720, start: i, end: i + 1 });
       continue;
     }
     if (t === "midnight") {
-      definite.push({ minutes: 0, start: i });
+      definite.push({ minutes: 0, start: i, end: i + 1 });
       continue;
     }
     if ((t === "half" || t === "quarter") && (tokens[i + 1] === "past" || tokens[i + 1] === "to")) {
@@ -247,23 +334,30 @@ function scanTimes(tokens: string[]): { definite: { minutes: number; start: numb
         const h = tokens[i + 1] === "to" ? (hr.h === 1 ? 12 : hr.h - 1) : hr.h;
         const m = tokens[i + 1] === "to" ? 60 - delta : delta;
         const mer = meridiemAt(tokens, i + 2 + hr.len);
-        if (mer) definite.push({ minutes: to24(h, m, mer.mer), start: i });
-        else bare.push({ hour12: h, minute: m, start: i });
-        i += 2 + hr.len - 1;
+        const end = i + 2 + hr.len + (mer ? mer.len : 0);
+        if (mer) definite.push({ minutes: to24(h, m, mer.mer), start: i, end });
+        else bare.push({ hour12: h, minute: m, start: i, end });
+        i = end - 1;
         continue;
       }
+    }
+    const range = rangeAt(tokens, i);
+    if (range) {
+      ranges.push(range);
+      i = range.end - 1;
+      continue;
     }
     const hr = hourAt(tokens, i);
     if (!hr) continue;
     const after = i + hr.len;
     const mer = meridiemAt(tokens, after);
     if (mer && hr.h >= 1 && hr.h <= 12) {
-      definite.push({ minutes: to24(hr.h, hr.m, mer.mer), start: i });
+      definite.push({ minutes: to24(hr.h, hr.m, mer.mer), start: i, end: after + mer.len });
       i = after + mer.len - 1;
       continue;
     }
     if (hr.colon && (hr.h >= 13 || hr.h === 0 || hr.lead0)) {
-      definite.push({ minutes: hr.h * 60 + hr.m, start: i });
+      definite.push({ minutes: hr.h * 60 + hr.m, start: i, end: after });
       i = after - 1;
       continue;
     }
@@ -273,11 +367,11 @@ function scanTimes(tokens: string[]): { definite: { minutes: number; start: numb
     const whole = tokens.length === hr.len;
     const nextIsCount = NOT_TIME_NEXT.has(tokens[after] ?? "");
     if (hr.colon || oclock || whole || (prep && !nextIsCount)) {
-      bare.push({ hour12: hr.h, minute: hr.m, start: i });
+      bare.push({ hour12: hr.h, minute: hr.m, start: i, end: after + (oclock ? 1 : 0) });
       i = after - 1 + (oclock ? 1 : 0);
     }
   }
-  return { definite, bare };
+  return { definite, bare, ranges };
 }
 
 function decideTime(tokens: string[], definite: number[], bare: { hour12: number; minute: number }[]): TimeParse {
@@ -349,8 +443,8 @@ const endsAt = (tokens: string[], end: number, seq: string[]) => end - seq.lengt
  */
 export function timeRelation(text: string): TimeRelation {
   const tokens = normaliseText(text).split(" ").filter(Boolean);
-  const { definite, bare } = scanTimes(tokens);
-  const starts = [...definite.map((d) => d.start), ...bare.map((b) => b.start)];
+  const { definite, bare, ranges } = scanTimes(tokens);
+  const starts = [...definite, ...bare, ...ranges].map((t) => t.start);
   const found = new Set<TimeRelation>();
   for (const start of starts) {
     let end = start;

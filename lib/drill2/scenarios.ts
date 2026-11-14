@@ -227,6 +227,7 @@ export const KICKOFF_CHANGE: Scenario = {
         value: 30,
         units: ["minutes", "minute", "mins", "min"],
         otherUnits: ["seconds", "second", "secs", "sec", "hours", "hour", "hrs", "hr", "days", "day"],
+        rangeSpanMinutes: true,
       },
       revealLine: "Thirty minutes is plenty.",
       topics: ["duration"],

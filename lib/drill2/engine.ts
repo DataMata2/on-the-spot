@@ -140,6 +140,9 @@ export function useHint(s: Scenario, state: DrillState): { state: DrillState; hi
 
 type Primary = "ok" | "wrong" | "wrong_unit" | "wrong_relation" | "outdated" | "ambiguous" | "none" | "skip";
 
+/** Which end of a time range ("2 to 2:30 pm") is the fact's time: the start of a meeting, the end of a deadline. */
+const rangeEnd = (relation: "by" | "at") => (relation === "by" ? "end" : "start");
+
 /**
  * Read one fact's slot from the user's words: the entities, the time and its relation word, the number and its
  * unit, the day, and the polarity. Deterministic, from the text only; the AI and the keyword fallback both end here.
@@ -157,10 +160,10 @@ export function readSlot(fact: Fact, text: string): Slot {
   }
   const check = fact.check;
   if (check.kind === "time") {
-    const t = parseTime(text);
+    const t = parseTime(text, { range: rangeEnd(check.relation) });
     slot.time = { kind: t.kind, relation: timeRelation(text), ...(t.kind === "definite" ? { minutes: t.minutes } : {}) };
   } else if (check.kind === "number") {
-    const n = parseNumber(text, check.units, { otherUnits: check.otherUnits, bareNumberOk: check.bareNumberOk });
+    const n = parseNumber(text, check.units, { otherUnits: check.otherUnits, bareNumberOk: check.bareNumberOk, rangeSpanMinutes: check.rangeSpanMinutes });
     slot.count =
       n.kind === "value" ? { kind: "value", value: n.n } : n.kind === "wrong_unit" ? { kind: "wrong_unit", value: n.n, unit: n.unit } : { kind: n.kind };
   } else if (check.kind === "weekday") {
@@ -192,7 +195,7 @@ function primaryOf(check: FactCheck, slot: Slot, quote: string, outdated: FactCh
     }
     case "time": {
       const target = clockToMinutes(check.value);
-      const parsed = parseTime(quote);
+      const parsed = parseTime(quote, { range: rangeEnd(check.relation) });
       const m = matchTime(parsed, target, check.bareHourOk);
       if (m === "mismatch") {
         if (outdated?.kind === "time" && matchTime(parsed, clockToMinutes(outdated.value), true) === "match") return "outdated";
