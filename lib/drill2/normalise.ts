@@ -111,13 +111,16 @@ function phraseAt(tokens: string[], i: number, phrase: string[]): boolean {
  * `otherUnits` is "wrong_unit". With units and no unit said at all, a number is ambiguous unless `bareNumberOk`.
  * Without `units`, every number in the text counts, and two different ones are ambiguous.
  */
-export function parseNumber(text: string, units: string[] = [], opts: NumberOptions = {}): NumberParse {
-  // "0.5 hours", "1.5 hrs", ".5 h": a decimal number of hours is minutes (normalising would split "0.5" into 0 and 5).
-  const decimals = text.replace(/(\d*\.\d+)\s*(?:hours?|hrs?|hr|h)\b/gi, (m, x: string) => {
+/** "0.5 hours", "1.5 hrs", ".5 h": a decimal number of hours is minutes (normalising would split "0.5" into 0 and 5). */
+function decimalHours(text: string): string {
+  return text.replace(/(\d*\.\d+)\s*(?:hours?|hrs?|hr|h)\b/gi, (m, x: string) => {
     const mins = Number(x) * 60;
     return Number.isInteger(mins) ? `${mins} minutes` : m;
   });
-  const spoken = prepare(decimals)
+}
+
+export function parseNumber(text: string, units: string[] = [], opts: NumberOptions = {}): NumberParse {
+  const spoken = prepare(decimalHours(text))
     .replace(/\b(?:an |one )?hour and a half\b/g, "90 minutes")
     .replace(/\b(?:a )?half (?:an )?hour\b/g, "30 minutes")
     .replace(/\b(?:a|an|one) quarter (?:of an )?hour\b/g, "15 minutes")
@@ -134,9 +137,11 @@ export function parseNumber(text: string, units: string[] = [], opts: NumberOpti
   let vague = false;
   let found = false;
   let wrong: { n: number; unit: string } | null = null;
+  let unitEnd = 0; // the number of another unit is read after the fact's last unit: "30 minutes, not 2 hours" has none
   for (let i = 0; i < tokens.length; i++) {
     const ut = unitTokens.find((u) => phraseAt(tokens, i, u));
     if (ut) {
+      unitEnd = i + ut.length;
       const near = numbersNear(i - 3, i);
       if (near.nums.length || near.vague) {
         found = true;
@@ -147,11 +152,12 @@ export function parseNumber(text: string, units: string[] = [], opts: NumberOpti
     }
     const ot = otherTokens.find((u) => phraseAt(tokens, i, u));
     if (ot && !wrong) {
-      const near = numbersNear(i - 2, i);
+      const near = numbersNear(Math.max(i - 2, unitEnd), i);
       if (near.nums.length) wrong = { n: near.nums[near.nums.length - 1], unit: ot.join(" ") };
     }
   }
-  if (found) return decide(nums, vague);
+  // A length in the fact's unit and one in another unit ("30 minutes or 2 hours") are two lengths: not clear.
+  if (found) return wrong ? { kind: "ambiguous" } : decide(nums, vague);
   if (wrong) return { kind: "wrong_unit", ...wrong };
   if (opts.rangeSpanMinutes && times.ranges.length === 1) return { kind: "value", n: times.ranges[0].span };
   const all = scanNumbers(tokens, 0, tokens.length);
@@ -618,6 +624,43 @@ export function negatedTokens(t: string[], phrases: string[][] = []): Set<number
     for (let k = after; k < j + Math.max(1, len); k++) out.add(k);
   }
   return out;
+}
+
+/**
+ * The words of `text` with negated ones dropped (`kept`: "I won't book 30 minutes" → "i"), and with only the negator
+ * words dropped (`said`: "i book 30 minutes"). Null when nothing is negated. Decimal hours and time-range dashes are
+ * read first, so the rebuilt text parses as the original would.
+ */
+export function negationReadings(text: string): { kept: string; said: string } | null {
+  const pre = decimalHours(text)
+    .toLowerCase()
+    .replace(/\b([ap])\s?\.\s?m\b\.?/g, " $1m ")
+    .replace(/(\d)\s*[–—]\s*(?=\d)/g, "$1 to ")
+    .replace(/(\d)\s*-\s*(?=\d{1,2}(?::\d{2}|\s*[ap]\s?\.?\s?m\b))/g, "$1 to ");
+  const t = boundaryTokens(pre);
+  const neg = negatedTokens(t);
+  if (!neg.size) return null;
+  const negator = new Set<number>();
+  for (let i = 0; i < t.length; i++) {
+    const after = negatorAt(t, i);
+    for (let k = i; k < after; k++) negator.add(k);
+  }
+  const join = (keep: (i: number) => boolean) => t.filter((_, i) => keep(i)).map((w) => (w === "|" ? "." : w)).join(" ");
+  return { kept: join((i) => !neg.has(i) && !negator.has(i)), said: join((i) => !negator.has(i)) };
+}
+
+/** Words that correct what was just said: "30 minutes, actually 30 hours", "Thursday, no wait, Friday". */
+const CORRECTION = /\b(?:actually|no,?\s+wait|wait|i mean|sorry|correction|or rather|scratch that|make that)\b/gi;
+
+/**
+ * A self-correction: the value said after the last correction word that is followed by one wins. Returns the text
+ * after that word, or the whole text when no correction names a value for the slot (`mentions`): "30 minutes,
+ * actually at 2 pm" keeps 30.
+ */
+export function afterCorrection(text: string, mentions: (part: string) => boolean): string {
+  const cuts = [...text.matchAll(CORRECTION)].map((m) => m.index + m[0].length);
+  for (const cut of cuts.reverse()) if (mentions(text.slice(cut))) return text.slice(cut);
+  return text;
 }
 
 /** Fillers that join two values into one list: "Acme and Globex", "Acme, Globex", "Priya, Marco and the team". */

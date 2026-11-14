@@ -2,9 +2,11 @@
 // Pure and deterministic. The AI roles (extractor, character) only feed it quotes and phrase its lines.
 
 import {
+  afterCorrection,
   clockToMinutes,
   hasPhrase,
   matchTime,
+  negationReadings,
   normaliseText,
   parseNumber,
   parseTime,
@@ -143,6 +145,38 @@ type Primary = "ok" | "wrong" | "wrong_unit" | "wrong_relation" | "outdated" | "
 /** Which end of a time range ("2 to 2:30 pm") is the fact's time: the start of a meeting, the end of a deadline. */
 const rangeEnd = (relation: "by" | "at") => (relation === "by" ? "end" : "start");
 
+/** Does the text name a value for this fact's slot (a count with a unit, a time, a day)? */
+function mentionsValue(check: FactCheck, text: string): boolean {
+  switch (check.kind) {
+    case "number": {
+      const opts = { otherUnits: check.otherUnits, bareNumberOk: check.bareNumberOk, rangeSpanMinutes: check.rangeSpanMinutes };
+      const n = parseNumber(text, check.units, opts);
+      if (n.kind === "value" || n.kind === "wrong_unit") return true;
+      // A bare number with no unit, where the fact has units, is not this slot ("actually, 2 people").
+      return n.kind === "ambiguous" && (!check.units?.length || [...check.units, ...(check.otherUnits ?? [])].some((u) => hasPhrase(text, u)));
+    }
+    case "time":
+      return parseTime(text, { range: rangeEnd(check.relation) }).kind !== "none";
+    case "weekday":
+      return parseWeekday(text).kind !== "none";
+    case "parts":
+      return false;
+  }
+}
+
+/**
+ * The words a value slot is read from. A self-correction ("30 minutes, actually 30 hours") leaves the corrected
+ * part; negated words are dropped ("I won't book 30 minutes"). `negated`: the value was said only inside a
+ * negation, so the user said they won't (not "not mentioned").
+ */
+function valueText(check: FactCheck, text: string): { text: string; latest: string; negated: boolean } {
+  if (check.kind === "parts") return { text, latest: text, negated: false };
+  const latest = afterCorrection(text, (part) => mentionsValue(check, part));
+  const neg = negationReadings(latest);
+  if (!neg) return { text: latest, latest, negated: false };
+  return { text: neg.kept, latest, negated: !mentionsValue(check, neg.kept) && mentionsValue(check, neg.said) };
+}
+
 /**
  * Read one fact's slot from the user's words: the entities, the time and its relation word, the number and its
  * unit, the day, and the polarity. Deterministic, from the text only; the AI and the keyword fallback both end here.
@@ -150,7 +184,9 @@ const rangeEnd = (relation: "by" | "at") => (relation === "by" ? "end" : "start"
 export function readSlot(fact: Fact, text: string): Slot {
   const parts = fact.parts ?? [];
   const pr = parts.length ? readParts(text, parts) : null;
-  const slot: Slot = { evidence: text, polarity: pr?.negated.length ? "negated" : "affirmed" };
+  const check = fact.check;
+  const value = valueText(check, text);
+  const slot: Slot = { evidence: text, polarity: pr?.negated.length || value.negated ? "negated" : "affirmed" };
   if (pr) {
     slot.entities = {
       present: parts.filter((p) => pr.match[p.id] === "present").map((p) => p.id),
@@ -158,16 +194,16 @@ export function readSlot(fact: Fact, text: string): Slot {
       extra: pr.extra ? pr.extra[1] : null,
     };
   }
-  const check = fact.check;
   if (check.kind === "time") {
-    const t = parseTime(text, { range: rangeEnd(check.relation) });
-    slot.time = { kind: t.kind, relation: timeRelation(text), ...(t.kind === "definite" ? { minutes: t.minutes } : {}) };
+    const t = parseTime(value.text, { range: rangeEnd(check.relation) });
+    // The relation is read on the words as said: "not before 5 pm" and "no later than" need their negators.
+    slot.time = { kind: t.kind, relation: timeRelation(value.latest), ...(t.kind === "definite" ? { minutes: t.minutes } : {}) };
   } else if (check.kind === "number") {
-    const n = parseNumber(text, check.units, { otherUnits: check.otherUnits, bareNumberOk: check.bareNumberOk, rangeSpanMinutes: check.rangeSpanMinutes });
+    const n = parseNumber(value.text, check.units, { otherUnits: check.otherUnits, bareNumberOk: check.bareNumberOk, rangeSpanMinutes: check.rangeSpanMinutes });
     slot.count =
       n.kind === "value" ? { kind: "value", value: n.n } : n.kind === "wrong_unit" ? { kind: "wrong_unit", value: n.n, unit: n.unit } : { kind: n.kind };
   } else if (check.kind === "weekday") {
-    const d = parseWeekday(text);
+    const d = parseWeekday(value.text);
     slot.day = d.kind === "value" ? { kind: "value", value: d.day } : { kind: d.kind };
   }
   return slot;
@@ -245,7 +281,7 @@ export function gradeFact(
   };
   if (!q || !slot) return done("missing", "not_mentioned", "You didn't say this back.");
 
-  const primary = primaryOf(fact.check, slot, q, ctx.outdated ?? null);
+  const primary = primaryOf(fact.check, slot, valueText(fact.check, q).text, ctx.outdated ?? null);
   const parts = fact.parts ?? [];
   const ent = slot.entities;
   const present = ent?.present.length ?? 0;
@@ -301,6 +337,9 @@ export function gradeConfirmation(s: Scenario, state: DrillState, fields: Extrac
       // "after Thursday at 10 a.m.", "Acme" out of "Acme and Globex" or "email" out of "I won't email Jenna" is
       // re-checked against the whole utterance. (The extractor found this fact, so its words are the ones read.)
       else if (quote && g.status !== "contradicted" && whole.status === "contradicted") g = whole;
+      // Nor a hedge on a count: "30 minutes" out of "30 minutes or maybe 2 hours" is two lengths, not clear. (Only
+      // counts: a count is read next to its unit, so another fact's words don't make it ambiguous.)
+      else if (quote && g.status === "correct" && eff.check.kind === "number" && whole.reason === "ambiguous") g = whole;
     }
     return g;
   });
