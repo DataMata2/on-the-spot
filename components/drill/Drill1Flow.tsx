@@ -261,8 +261,9 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   };
 
   const begin = (typing: boolean) => {
-    if (typing) saveMode("typed");
-    void startQuestion(null, false, typing || readMode() === "typed");
+    // An explicit choice on the intro wins over the saved one; the saved mode only sets retry defaults.
+    saveMode(typing ? "typed" : "voice");
+    void startQuestion(null, false, typing);
   };
 
   const retry = () => {
