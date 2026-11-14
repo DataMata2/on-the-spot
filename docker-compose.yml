@@ -1,7 +1,7 @@
 name: on-the-spot
 
 services:
-  app:
+  on-the-spot:
     container_name: on-the-spot-app
     build:
       context: .

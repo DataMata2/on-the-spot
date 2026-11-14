@@ -7,12 +7,12 @@ HOST="${DEPLOY_HOST:-root@incode.kz}"
 DIR="${DEPLOY_DIR:-/home/ubuntu/on-the-spot}"
 cd "$(dirname "$0")/.."
 
-git fetch -q origin main
-SHA="$(git rev-parse --short origin/main)"
-echo "Deploying origin/main @ $SHA to $HOST:$DIR"
+REF="${DEPLOY_REF:-origin/main}"; [ "$REF" = origin/main ] && git fetch -q origin main
+SHA="$(git rev-parse --short "$REF")"
+echo "Deploying $REF @ $SHA to $HOST:$DIR"
 
 # Ship a clean tree of origin/main (no .env, no local changes), keep the server's .env.
-git archive --format=tar origin/main | ssh "$HOST" "set -e
+git archive --format=tar "$REF" | ssh "$HOST" "set -e
   mkdir -p '$DIR/src.new' && tar -x -C '$DIR/src.new'
   rm -rf '$DIR/src.old'; [ -d '$DIR/src' ] && mv '$DIR/src' '$DIR/src.old'; mv '$DIR/src.new' '$DIR/src'
   ln -sf '$DIR/.env' '$DIR/src/.env'
