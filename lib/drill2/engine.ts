@@ -64,6 +64,17 @@ export function fireChangeIfDue(s: Scenario, state: DrillState, force = false): 
 /** The manager's reply when the user's turn sounds like a confirmation. */
 export const SUGGEST_CONFIRM_REPLY = "Sounds like you've got it. Tap “Confirm the task” and say it all back to me.";
 
+const NOT_MY_TASK = [
+  "Good question, but that's not what I need here.",
+  "Hm, that's not really part of this one.",
+  "Don't worry about that for this task.",
+];
+
+/** Deterministic reply when the engine allowed nothing (rotates with the turn count). */
+export function offTopicReply(turns: number): string {
+  return NOT_MY_TASK[turns % NOT_MY_TASK.length];
+}
+
 /** Said after the change when the user tried to confirm before it fired: they must confirm again. */
 export const CONFIRM_AGAIN_LINE = "Can you say it back to me again with that?";
 

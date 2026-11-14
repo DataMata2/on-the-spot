@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Pre-generate the jury's TTS audio so their runs cost no credits. Dry run first (prints the texts and the character
-# total; the server refuses more than 3,000 characters), then generates what isn't cached yet.
+# total; the server refuses more than 4,000 characters), then generates what isn't cached yet.
 # Usage: TTS_PREWARM_SECRET=... scripts/prewarm-tts.sh [base-url] [--yes]     (default https://speak.incode.kz)
 set -euo pipefail
 

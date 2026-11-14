@@ -277,10 +277,10 @@ export function ClarifyFlow() {
               {scenario.managerName}, {scenario.managerRole}
             </p>
             <div className="mt-3 flex flex-wrap gap-4 text-sm">
-              <button type="button" className="font-semibold text-accent hover:underline" onClick={() => say(managerLine)}>
+              <button type="button" className="font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => say(managerLine)}>
                 Play again
               </button>
-              <button type="button" className="font-semibold text-accent hover:underline" onClick={() => tts.supported && void tts.speak(managerLine, { rate: SLOW_RATE })}>
+              <button type="button" className="font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => tts.supported && void tts.speak(managerLine, { rate: SLOW_RATE })}>
                 Slower
               </button>
             </div>
@@ -327,6 +327,7 @@ export function ClarifyFlow() {
             onModeChange={(m) => setPreferTyping(m === "typed")}
             onCaptured={(a) => onCaptured(a, "review-question")}
             maxChars={MAX_CHARS}
+            onBeforeStart={tts.cancel}
             placeholder="e.g. Which numbers do you mean?"
             label="Your question"
           />
@@ -379,6 +380,7 @@ export function ClarifyFlow() {
             onModeChange={(m) => setPreferTyping(m === "typed")}
             onCaptured={(a) => onCaptured(a, "review-confirm")}
             maxChars={MAX_CHARS}
+            onBeforeStart={tts.cancel}
             placeholder="So you want me to…"
             label="Your confirmation"
           />

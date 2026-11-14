@@ -3,7 +3,7 @@
 import "server-only";
 import type Anthropic from "@anthropic-ai/sdk";
 import { getAnthropic, MODEL } from "@/lib/ai";
-import { allFacts, characterReplyIsSafe, fallbackExtract, quoteInUtterance } from "./engine";
+import { allFacts, characterReplyIsSafe, fallbackExtract, offTopicReply, quoteInUtterance } from "./engine";
 import type { DrillState, ExtractedFields, ExtractedTurn, Scenario } from "./types";
 
 const FALLBACK = { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const };
@@ -113,16 +113,8 @@ export async function extract(
   }
 }
 
-const NOT_MY_TASK = [
-  "Good question, but that's not what I need here.",
-  "Hm, that's not really part of this one.",
-  "Don't worry about that for this task.",
-];
-
-/** Deterministic reply when the engine allowed nothing. */
-export function offTopicReply(turns: number): string {
-  return NOT_MY_TASK[turns % NOT_MY_TASK.length];
-}
+// The deterministic off-topic reply lives in the pure engine (the TTS prewarm lists it too).
+export { offTopicReply };
 
 /** The engine's lines, verbatim: the fallback that always works. */
 export function verbatimReply(lines: string[]): string {

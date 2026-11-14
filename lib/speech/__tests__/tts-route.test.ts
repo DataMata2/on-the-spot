@@ -128,7 +128,7 @@ describe("POST /api/speech/tts", () => {
 });
 
 describe("prewarm", () => {
-  it("covers the jury's first questions and drill 2 lines, under the character limit", () => {
+  it("covers the jury's first questions and drill 2 lines, under the 4,000-character limit", () => {
     const texts = prewarmTexts();
     const total = texts.reduce((n, t) => n + t.length, 0);
     expect(total).toBeLessThanOrEqual(PREWARM_MAX_CHARS);

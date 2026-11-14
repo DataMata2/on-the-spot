@@ -383,10 +383,10 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
         <p className="mt-2 text-xl leading-snug font-semibold text-ink sm:text-2xl">“{question.text}”</p>
         {tts.supported && (
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <button type="button" className="font-semibold text-accent hover:underline" onClick={() => void tts.speak(question.text, { token: ttsToken })}>
+            <button type="button" className="font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => void tts.speak(question.text, { token: ttsToken })}>
               Replay
             </button>
-            <button type="button" className="font-semibold text-accent hover:underline" onClick={() => void tts.speak(question.text, { rate: SLOW_RATE, token: ttsToken })}>
+            <button type="button" className="font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => void tts.speak(question.text, { rate: SLOW_RATE, token: ttsToken })}>
               Slower
             </button>
             {phase.k === "question" && (
@@ -424,6 +424,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
           onCaptured={onCaptured}
           notice={phase.notice}
           maxChars={MAX_TRANSCRIPT_CHARS}
+          onBeforeStart={tts.cancel}
         />
       )}
 

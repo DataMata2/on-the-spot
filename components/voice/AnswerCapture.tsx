@@ -29,6 +29,12 @@ export interface AnswerCaptureProps {
   placeholder?: string;
   /** Label of the typing box. "Your answer" by default; drill 2 uses "Your question" / "Your confirmation". */
   label?: string;
+  /**
+   * Called inside the record tap, right before recording starts. The drills pass tts.cancel, so a tap while the
+   * manager or the question is still speaking (or its audio is still loading) stops the voice first: the recording
+   * never starts over it.
+   */
+  onBeforeStart?(): void;
 }
 
 const ERROR_TEXT: Record<string, string> = {
@@ -39,7 +45,7 @@ const ERROR_TEXT: Record<string, string> = {
   other: "Speech recognition stopped unexpectedly. Try again or type your answer.",
 };
 
-export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, maxChars = 1500, notice, placeholder = "Type your answer the way you'd say it…", label = "Your answer" }: AnswerCaptureProps) {
+export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, maxChars = 1500, notice, placeholder = "Type your answer the way you'd say it…", label = "Your answer", onBeforeStart }: AnswerCaptureProps) {
   const [typing, setTyping] = useState(Boolean(preferTyping));
   const [typed, setTyped] = useState("");
   const [heardNothing, setHeardNothing] = useState(false);
@@ -146,6 +152,7 @@ export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, max
             disabled={capturePending}
             onStart={() => {
               setHeardNothing(false);
+              onBeforeStart?.();
               stt.start();
             }}
             onStop={() => void handleStop()}
