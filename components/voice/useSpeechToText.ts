@@ -3,8 +3,8 @@
 // server engine (ElevenLabs) on top of it and is what `useSpeechToText` from "@/components/voice" returns.
 // Browser engine: webkitSpeechRecognition (Chrome, Edge, Safari), en-US, interim results. Chrome ends a
 // session on its own after silence; while the user is still "talking" (active) we restart it and keep what was
-// already recognized. A hard maximum duration stops it regardless. Audio never leaves the browser's engine
-// from our side; only the text is sent to our server.
+// already recognized. A hard maximum duration stops it regardless. The browser's speech service does the
+// transcription (Chrome sends audio to Google); our server only receives the text.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useClientValue } from "./useClientValue";

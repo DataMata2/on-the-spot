@@ -13,6 +13,7 @@
 // (POST /api/rehearse/questions): the flow walks through them in order instead of calling /api/drill1/start, and the
 // stronger version only carries over as help to a next question of the same type.
 
+import { errorMessage } from "@/lib/client-error";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Paywall } from "@/components/paywall";
@@ -143,7 +144,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
           return;
         }
         if (!res.ok || !body.question || !body.attemptId) {
-          setPhase({ k: "error", message: body.error ?? "Something went wrong. Try again.", retry: "start" });
+          setPhase({ k: "error", message: errorMessage(res.status, body.error, "Something went wrong. Try again."), retry: "start" });
           return;
         }
         q = body.question;
@@ -160,6 +161,12 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
       setStrongerOpen(false);
       setCarriedHelp(carry);
       stt.reset();
+      if (typing) {
+        // Typists get the answer box right away while the question is read aloud: no think timer.
+        setPhase({ k: "answer" });
+        if (tts.supported) void tts.speak(q.text, { token: issuedToken });
+        return;
+      }
       setPhase({ k: "question" });
       if (tts.supported) await tts.speak(q.text, { token: issuedToken });
       if (token === tokenRef.current) setPhase((p) => (p.k === "question" ? { k: "think" } : p));
@@ -196,7 +203,8 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
         return;
       }
       if ("status" in body && body.status === "too_short") {
-        setPhase({ k: "answer", notice: body.message });
+        // Typed: the text stays in the box (initialText below), with a typing message.
+        setPhase({ k: "answer", notice: answerMode === "typed" ? "Please write at least a few words." : body.message });
         return;
       }
       if (!res.ok || !("status" in body) || body.status !== "ok") {
@@ -204,12 +212,12 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
         if (err.code === "too_long") {
           // Resending the same text would fail again: back to the answer step to say it shorter.
           stt.reset();
-          setPhase({ k: "answer", notice: err.error ?? "That answer is too long. Keep it shorter." });
+          setPhase({ k: "answer", notice: errorMessage(res.status, err.error, "That answer is too long. Keep it shorter.") });
         } else if (err.code === "no_attempt" || err.code === "attempt_limit") {
           // This attempt can't be graded again: the only way on is a new question.
-          setPhase({ k: "error", message: err.error ?? "This question expired.", retry: "start" });
+          setPhase({ k: "error", message: errorMessage(res.status, err.error, "This question expired."), retry: "start" });
         } else {
-          setPhase({ k: "error", message: err.error ?? "Feedback failed. Try again.", retry: "grade" });
+          setPhase({ k: "error", message: errorMessage(res.status, err.error, "Feedback failed. Try again."), retry: "grade" });
         }
         return;
       }
@@ -242,6 +250,13 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   const onModeChange = (m: AnswerMode) => {
     saveMode(m);
     setPreferTyping(m === "typed");
+  };
+
+  /** "Type instead" while the question is read or during the think timer: straight to the answer box. */
+  const typeNow = () => {
+    saveMode("typed");
+    setPreferTyping(true);
+    setPhase({ k: "answer" });
   };
 
   const begin = (typing: boolean) => {
@@ -390,7 +405,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
               Slower
             </button>
             {phase.k === "question" && (
-              <button type="button" className="text-ink-3 hover:underline" onClick={() => { tts.cancel(); setPhase({ k: "think" }); }}>
+              <button type="button" className="rounded-md border border-line-strong px-3 font-semibold text-ink-2 hover:bg-sunken" onClick={() => { tts.cancel(); setPhase({ k: "think" }); }}>
                 Skip reading
               </button>
             )}
@@ -415,6 +430,12 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
         <ThinkTimer seconds={5} onDone={() => { tts.cancel(); setPhase({ k: "answer" }); }} skipLabel="I'm ready, answer now" />
       )}
 
+      {(phase.k === "question" || phase.k === "think") && (
+        <button type="button" onClick={typeNow} className="self-center text-sm font-semibold text-accent hover:underline">
+          Type instead
+        </button>
+      )}
+
       {phase.k === "answer" && (
         <AnswerCapture
           key={attemptId}
@@ -424,6 +445,8 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
           onCaptured={onCaptured}
           notice={phase.notice}
           maxChars={MAX_TRANSCRIPT_CHARS}
+          submitLabel="Get feedback"
+          initialText={mode === "typed" ? raw : ""}
           onBeforeStart={tts.cancel}
         />
       )}

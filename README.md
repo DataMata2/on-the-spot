@@ -9,7 +9,7 @@ landed.
 - **Drill 2, clarify the vague task** (`/clarify`): ask the questions that turn a vague request into a clear one.
   Graded by a deterministic engine.
 - **Progress** (`/progress`): kept in this browser (localStorage). No sign-up.
-- **Pro** (`/pricing`): $12/month or $79/year. Unlimited drills, drill 2, a daily plan, "rehearse my real meeting"
+- **Pro** (`/pricing`): $12/month or $79/year. Unlimited drills, drill 2, "rehearse my real meeting"
   (listed as coming soon until it ships). Free tier: 3 drills a day and one try of drill 2.
 
 ## Stack

@@ -14,6 +14,8 @@ export interface Quoted {
 }
 
 export interface AiFeedback {
+  /** The model's view: is the answer (mostly) in English? */
+  english: boolean;
   answerFirst: { verdict: Verdict; evidenceQuote: string | null; note: string };
   structure: { point: Quoted; reason: Quoted; nextStep: Quoted };
   strongerVersion: string;
@@ -40,6 +42,8 @@ export interface Drill1Feedback {
   tip: string;
   /** False when the AI part failed and only the deterministic checks are shown. */
   aiAvailable: boolean;
+  /** False when the answer is not in English (the word check or the model): then nothing is scored a success. */
+  english: boolean;
 }
 
 const quotedSchema = {
@@ -55,6 +59,7 @@ const quotedSchema = {
 export const FEEDBACK_SCHEMA = {
   type: "object",
   properties: {
+    english: { type: "boolean", description: "true when the answer is mostly in English; false when it is mostly in another language." },
     answerFirst: {
       type: "object",
       properties: {
@@ -74,13 +79,14 @@ export const FEEDBACK_SCHEMA = {
     strongerVersion: { type: "string" },
     tip: { type: "string" },
   },
-  required: ["answerFirst", "structure", "strongerVersion", "tip"],
+  required: ["english", "answerFirst", "structure", "strongerVersion", "tip"],
   additionalProperties: false,
 } as const;
 
 export const FEEDBACK_SYSTEM = `You coach immigrant tech and product professionals in US companies on answering a surprise question in a meeting. You grade WHAT they said, never accent, pronunciation or grammar nitpicks. The transcript comes from browser speech recognition, so it may lack punctuation and contain small recognition errors; do not penalize those.
 
 Judge:
+0. english: true when the answer is mostly in English, false when it is mostly in another language. If false, still fill the other fields, but grade nothing as present: verdict "no", every structure item present false.
 1. answerFirst: did the FIRST sentence (roughly the first 20 words) directly answer the question asked? "yes" = the opening gives the status / decision / estimate / blocker answer; "partly" = an answer exists but comes late or is hedged; "no" = no direct answer. evidenceQuote = the exact words from the transcript that answer the question (copy them character for character; empty string if none). note = one short, kind, specific sentence.
 2. structure: point (the answer itself), reason (why), nextStep (what happens next / what they need). For each: present true/false and a quote copied exactly from the transcript (empty string when absent).
 3. strongerVersion: rewrite their answer as they could say it in 2-4 short spoken sentences: answer first, then the reason, then the next step. Use ONLY their own facts, names and numbers. NEVER invent facts. Where a fact is missing, put a bracketed placeholder such as [your ETA], [the date], [the reason], [who you need]. Keep their vocabulary where it works; plain spoken American workplace English.
@@ -169,6 +175,7 @@ export function normalizeAi(raw: unknown, transcript: string): AiFeedback | null
   if (!af || !VERDICTS.includes(af.verdict as Verdict)) return null;
   const st = (typeof r.structure === "object" && r.structure !== null ? r.structure : {}) as Record<string, unknown>;
   return {
+    english: r.english !== false,
     answerFirst: { verdict: af.verdict as Verdict, evidenceQuote: findSpan(transcript, str(af.evidenceQuote)), note: str(af.note, 300) },
     structure: { point: quoted(st.point, transcript), reason: quoted(st.reason, transcript), nextStep: quoted(st.nextStep, transcript) },
     strongerVersion: guardStrongerVersion(str(r.strongerVersion, 1200), transcript),
@@ -189,6 +196,8 @@ export function combineVerdict(ai: Verdict | null, wordCheckPassed: boolean, evi
 }
 
 const FALLBACK_TIP = "Open with the answer in one phrase, then give one reason and the next step.";
+export const NOT_ENGLISH_NOTE = "Answer in English to get feedback on structure.";
+const NOT_ENGLISH_TIP = "Say it in English, even simply: the answer first, then one reason and the next step.";
 
 /** Merge the deterministic checks with the (normalized) model output into the response body. */
 export function buildFeedback(args: {
@@ -201,6 +210,23 @@ export function buildFeedback(args: {
   const { questionId, graded, edited, checks, ai } = args;
   const wordPassed = checks.answerWord !== null;
   const evidence = ai?.answerFirst.evidenceQuote ?? null;
+  // A non-English answer is never a success: the verdict is capped at "no" ("not yet"), with nothing scored.
+  const english = checks.english && ai?.english !== false;
+  if (!english) {
+    return {
+      status: "ok",
+      questionId,
+      graded,
+      edited,
+      checks,
+      answerFirst: { verdict: "no", ai: ai?.answerFirst.verdict ?? null, wordCheck: { passed: wordPassed, word: checks.answerWord }, evidenceQuote: null, note: NOT_ENGLISH_NOTE },
+      structure: null,
+      strongerVersion: null,
+      tip: NOT_ENGLISH_TIP,
+      aiAvailable: ai !== null,
+      english: false,
+    };
+  }
   return {
     status: "ok",
     questionId,
@@ -218,5 +244,6 @@ export function buildFeedback(args: {
     strongerVersion: ai?.strongerVersion || null,
     tip: ai?.tip || FALLBACK_TIP,
     aiAvailable: ai !== null,
+    english: true,
   };
 }

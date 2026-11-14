@@ -14,6 +14,32 @@ export const metadata: Metadata = {
 
 const FREE = ["3 drills a day", "One try of Clarify the vague task", "Your progress, saved in this browser"];
 
+/** The free tier, shown next to the paywall (not to Pro users). */
+function FreeCard() {
+  return (
+    <aside className="w-full max-w-md rounded-lg border border-line bg-paper p-5 sm:p-6 lg:max-w-xs">
+      <h2 className="text-base font-bold text-ink">Free</h2>
+      <p className="mt-1 text-sm text-ink-2">$0, no sign-up.</p>
+      <ul className="mt-4 flex flex-col gap-2 text-sm text-ink-2">
+        {FREE.map((f) => (
+          <li key={f} className="flex gap-2">
+            <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-ink-3" />
+            {f}
+          </li>
+        ))}
+      </ul>
+      <Link href="/drill" className={buttonClasses({ variant: "secondary", fullWidth: true, className: "mt-5" })}>
+        Try a free drill
+      </Link>
+      <p className="mt-5 border-t border-line pt-4 text-xs text-ink-3">
+        We never score your accent. Feedback is about whether your answer landed: clear point, right length, a
+        next step.
+      </p>
+    </aside>
+  );
+}
+
+/** Pro users see their plan; everyone else the paywall and the free tier. */
 async function PlanArea() {
   if (await isProRequest()) {
     return (
@@ -33,7 +59,12 @@ async function PlanArea() {
       </section>
     );
   }
-  return <Paywall />;
+  return (
+    <>
+      <Paywall />
+      <FreeCard />
+    </>
+  );
 }
 
 type SearchParams = Promise<{ error?: string | string[] }>;
@@ -69,29 +100,17 @@ export default function PricingPage({ searchParams }: { searchParams: SearchPara
         </Suspense>
 
         <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start lg:justify-center">
-          <Suspense fallback={<Paywall />}>
+          <Suspense
+            fallback={
+              <>
+                <Paywall />
+                <FreeCard />
+              </>
+            }
+          >
             <PlanArea />
           </Suspense>
 
-          <aside className="w-full max-w-md rounded-lg border border-line bg-paper p-5 sm:p-6 lg:max-w-xs">
-            <h2 className="text-base font-bold text-ink">Free</h2>
-            <p className="mt-1 text-sm text-ink-2">$0, no sign-up.</p>
-            <ul className="mt-4 flex flex-col gap-2 text-sm text-ink-2">
-              {FREE.map((f) => (
-                <li key={f} className="flex gap-2">
-                  <span aria-hidden className="mt-2 size-1.5 shrink-0 rounded-full bg-ink-3" />
-                  {f}
-                </li>
-              ))}
-            </ul>
-            <Link href="/drill" className={buttonClasses({ variant: "secondary", fullWidth: true, className: "mt-5" })}>
-              Try a free drill
-            </Link>
-            <p className="mt-5 border-t border-line pt-4 text-xs text-ink-3">
-              We never score your accent. Feedback is about whether your answer landed: clear point, right length, a
-              next step.
-            </p>
-          </aside>
         </div>
       </main>
       <Footer />

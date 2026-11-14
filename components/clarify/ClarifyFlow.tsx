@@ -2,6 +2,7 @@
 // Drill 2 "Clarify the vague task": hear a vague task, ask clarifying questions (voice or typed), confirm it back,
 // then see which hidden details you found and confirmed. The server's engine grades; this only shows it.
 
+import { errorMessage } from "@/lib/client-error";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Paywall } from "@/components/paywall";
 import { AnswerCapture, MicExplainer, SLOW_RATE, TranscriptEditor, useSpeechToText, useTTS, type AnswerMode, type CapturedAnswer } from "@/components/voice";
@@ -95,7 +96,7 @@ export function ClarifyFlow() {
       return;
     }
     if (r.status !== 200 || !r.data.sessionId) {
-      setPhase({ k: "error", message: r.data.error ?? "Something went wrong. Try again.", retry: "start" });
+      setPhase({ k: "error", message: errorMessage(r.status, r.data.error, "Something went wrong. Try again."), retry: "start" });
       return;
     }
     setSessionId(r.data.sessionId);
@@ -149,7 +150,7 @@ export function ClarifyFlow() {
       setRaw(rawText);
       setEdited(text);
       setMode(m);
-      setPhase({ k: "error", message: r.data.error ?? "Something went wrong. Try again.", retry: r.data.code === "session_gone" ? "start" : "turn" });
+      setPhase({ k: "error", message: errorMessage(r.status, r.data.error, "Something went wrong. Try again."), retry: r.data.code === "session_gone" ? "start" : "turn" });
       return;
     }
     pendingId.current = null;
@@ -204,7 +205,7 @@ export function ClarifyFlow() {
       setRaw(rawText);
       setEdited(text);
       setMode(m);
-      setPhase({ k: "error", message: r.data.error ?? "Something went wrong. Try again.", retry: r.data.code === "session_gone" ? "start" : "confirm" });
+      setPhase({ k: "error", message: errorMessage(r.status, r.data.error, "Something went wrong. Try again."), retry: r.data.code === "session_gone" ? "start" : "confirm" });
       return;
     }
     const grade = r.data.grade;
@@ -235,7 +236,7 @@ export function ClarifyFlow() {
     <div className="flex flex-col gap-6">
       <header className="flex flex-col gap-2">
         <p className="text-xs font-semibold tracking-wide text-accent uppercase">Drill 2 · Clarify the vague task</p>
-        <h1 className="text-2xl font-semibold text-ink">{scenario && phase.k !== "intro" ? scenario.title : "Clarify the vague task"}</h1>
+        <h1 className="text-2xl font-semibold text-ink">{phase.k === "paywall" ? "Want another task? Clarify is part of Pro." : scenario && phase.k !== "intro" ? scenario.title : "Clarify the vague task"}</h1>
         {phase.k === "intro" && (
           <p className="text-base text-ink-2">
             Your manager gives you a task that&apos;s missing details. Ask clarifying questions out loud, then say the task back. We check which details you found and
@@ -330,6 +331,7 @@ export function ClarifyFlow() {
             onBeforeStart={tts.cancel}
             placeholder="e.g. Which numbers do you mean?"
             label="Your question"
+            submitLabel="Ask"
           />
           <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
             <button
@@ -383,6 +385,7 @@ export function ClarifyFlow() {
             onBeforeStart={tts.cancel}
             placeholder="So you want me to…"
             label="Your confirmation"
+            submitLabel="Confirm"
           />
           <button type="button" onClick={() => { freshCapture(); setPhase({ k: "ask" }); }} className="self-start text-sm font-semibold text-accent hover:underline">
             Back to questions

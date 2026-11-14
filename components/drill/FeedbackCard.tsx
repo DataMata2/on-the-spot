@@ -60,12 +60,14 @@ export function FeedbackCard({ feedback: f, strongerOpen, onOpenStronger }: Feed
           {v.label}
         </span>
         <p className="text-lg text-ink">{f.answerFirst.note}</p>
+        {f.english !== false && (
         <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-3">
           <span>AI judgment: {f.answerFirst.ai ?? "unavailable"}</span>
           <span>
             Word check: {f.answerFirst.wordCheck.passed ? <>found “{f.answerFirst.wordCheck.word}” in your first sentence</> : "no status or decision word in your first sentence"}
           </span>
         </div>
+        )}
       </header>
 
       <section className="flex flex-col gap-2">

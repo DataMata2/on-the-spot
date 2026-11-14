@@ -129,6 +129,43 @@ export function fillerCounts(text: string): { total: number; byFiller: Record<st
   return { total, byFiller };
 }
 
+/**
+ * Very common English words (function words, weekdays and a few workplace words). Ordinary English speech is
+ * roughly a third to a half of these; another language written in Latin letters has almost none.
+ */
+export const COMMON_ENGLISH: ReadonlySet<string> = new Set(
+  (
+    "the a an and or but so because if then than to of in on at for with by from about into up out over as " +
+    "is are was were be been being am it it's its this that these those there here what which who when where why how " +
+    "i i'm i'll i'd i've we we're we'll we'd we've you you're your they they're their them he she his her our us my me " +
+    "will would can could should shall may might must have has had do does did done don't didn't won't can't isn't " +
+    "not no yes yeah just now still yet all some any more most very also well get got going go need needs next " +
+    "today tomorrow week day days ready track blocked finished ship shipped " +
+    "monday tuesday wednesday thursday friday saturday sunday"
+  ).split(" "),
+);
+/** At least this many words before the common-word share is trusted. */
+export const ENGLISH_MIN_WORDS = 5;
+/** Below this share of common English words, the answer is treated as not English. */
+export const ENGLISH_MIN_SHARE = 0.1;
+/** Above this share of non-ASCII letters (Cyrillic, accented, CJK…), the answer is treated as not English. */
+export const NON_ASCII_MAX_SHARE = 0.2;
+
+/**
+ * A simple, deterministic "is this English?" check: few non-ASCII letters, and (for 5+ words) at least 10% common
+ * English words. Too little text to tell → true (the too-short check handles it).
+ */
+export function looksEnglish(text: string): boolean {
+  const letters = text.match(/\p{L}/gu) ?? [];
+  if (letters.length === 0) return true;
+  const nonAscii = letters.filter((c) => !/[A-Za-z]/.test(c)).length;
+  if (nonAscii / letters.length > NON_ASCII_MAX_SHARE) return false;
+  const ws = (text.toLowerCase().match(/\p{L}+(?:['’]\p{L}+)*/gu) ?? []).map((w) => w.replace(/’/g, "'"));
+  if (ws.length < ENGLISH_MIN_WORDS) return true;
+  const hits = ws.filter((w) => COMMON_ENGLISH.has(w)).length;
+  return hits / ws.length >= ENGLISH_MIN_SHARE;
+}
+
 export interface DeterministicChecks {
   words: number;
   sentences: number;
@@ -138,6 +175,8 @@ export interface DeterministicChecks {
   /** The status/decision word found in the opening, or null. */
   answerWord: string | null;
   fillers: { total: number; byFiller: Record<string, number> };
+  /** The deterministic language check (looksEnglish). */
+  english: boolean;
 }
 
 export function runChecks(text: string): DeterministicChecks {
@@ -149,5 +188,6 @@ export function runChecks(text: string): DeterministicChecks {
     firstSentence: firstSentence(t),
     answerWord: findAnswerWord(t),
     fillers: fillerCounts(t),
+    english: looksEnglish(t),
   };
 }

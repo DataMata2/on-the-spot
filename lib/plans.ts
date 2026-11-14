@@ -5,7 +5,7 @@
 export const PLANS = {
   yearly: {
     name: "On the Spot Pro — yearly",
-    description: "A year of On the Spot Pro: daily plan, Clarify drill, unlimited drills, rehearse your real meeting",
+    description: "A year of On the Spot Pro: unlimited drills, Clarify drill, rehearse your real meeting",
     amountCents: 7900,
     currency: "usd",
     interval: "year",

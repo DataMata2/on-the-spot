@@ -29,6 +29,10 @@ export interface AnswerCaptureProps {
   placeholder?: string;
   /** Label of the typing box. "Your answer" by default; drill 2 uses "Your question" / "Your confirmation". */
   label?: string;
+  /** The typed-mode submit button: "Submit answer" by default; drill 1 "Get feedback", drill 2 "Ask" / "Confirm". */
+  submitLabel?: string;
+  /** Text to start the typing box with (a typed answer sent back as too short stays in the box). */
+  initialText?: string;
   /**
    * Called inside the record tap, right before recording starts. The drills pass tts.cancel, so a tap while the
    * manager or the question is still speaking (or its audio is still loading) stops the voice first: the recording
@@ -45,9 +49,9 @@ const ERROR_TEXT: Record<string, string> = {
   other: "Speech recognition stopped unexpectedly. Try again or type your answer.",
 };
 
-export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, maxChars = 1500, notice, placeholder = "Type your answer the way you'd say it…", label = "Your answer", onBeforeStart }: AnswerCaptureProps) {
+export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, maxChars = 1500, notice, placeholder = "Type your answer the way you'd say it…", label = "Your answer", submitLabel = "Submit answer", initialText = "", onBeforeStart }: AnswerCaptureProps) {
   const [typing, setTyping] = useState(Boolean(preferTyping));
-  const [typed, setTyped] = useState("");
+  const [typed, setTyped] = useState(initialText);
   const [heardNothing, setHeardNothing] = useState(false);
   // Endings that happened before this box mounted belong to an earlier capture.
   const [mountedAfter] = useState(() => stt.ended?.session ?? 0);
@@ -138,7 +142,7 @@ export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, max
                 </button>
               )}
               <button type="submit" disabled={!typed.trim()} className="h-11 rounded-md bg-accent px-5 font-semibold text-white hover:bg-accent-hover disabled:opacity-45">
-                Done
+                {submitLabel}
               </button>
             </div>
           </div>

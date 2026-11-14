@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { runChecks } from "../checks";
-import { buildFeedback, combineVerdict, findSpan, guardStrongerVersion, normalizeAi } from "../feedback";
+import { buildFeedback, combineVerdict, findSpan, guardStrongerVersion, normalizeAi, NOT_ENGLISH_NOTE } from "../feedback";
 
 const T = "So we’re on track for Friday.  The API is done, and QA starts Monday.";
 
@@ -77,6 +77,29 @@ describe("normalizeAi + buildFeedback", () => {
     const fb = buildFeedback({ questionId: "st-onboarding", graded: T, edited: false, checks: runChecks(T), ai: normalizeAi(raw, T) });
     expect(fb.answerFirst).toMatchObject({ verdict: "yes", ai: "yes", wordCheck: { passed: true, word: "on track" } });
     expect(fb.aiAvailable).toBe(true);
+  });
+  it("reads the model's english flag (missing → true)", () => {
+    expect(normalizeAi(raw, T)!.english).toBe(true);
+    expect(normalizeAi({ ...raw, english: false }, T)!.english).toBe(false);
+  });
+  it("caps a non-English answer at 'not yet' even when the model says yes (word check)", () => {
+    const es = "Sí, vamos bien. La API está lista y el QA empieza el lunes.";
+    const yes = {
+      english: true,
+      answerFirst: { verdict: "yes", evidenceQuote: "vamos bien", note: "Clear answer." },
+      structure: { point: { present: true, quote: "vamos bien" }, reason: { present: true, quote: "La API está lista" }, nextStep: { present: true, quote: "el QA empieza el lunes" } },
+      strongerVersion: "We're on track.",
+      tip: "Good.",
+    };
+    const fb = buildFeedback({ questionId: "x", graded: es, edited: false, checks: runChecks(es), ai: normalizeAi(yes, es) });
+    expect(fb).toMatchObject({ english: false, structure: null, strongerVersion: null, answerFirst: { verdict: "no", ai: "yes", evidenceQuote: null, note: NOT_ENGLISH_NOTE } });
+  });
+  it("caps the verdict when only the model says it is not English", () => {
+    const fb = buildFeedback({ questionId: "x", graded: T, edited: false, checks: runChecks(T), ai: normalizeAi({ ...raw, english: false }, T) });
+    expect(fb).toMatchObject({ english: false, structure: null, answerFirst: { verdict: "no", note: NOT_ENGLISH_NOTE } });
+  });
+  it("marks English answers english", () => {
+    expect(buildFeedback({ questionId: "x", graded: T, edited: false, checks: runChecks(T), ai: normalizeAi(raw, T) }).english).toBe(true);
   });
   it("still answers without the AI", () => {
     const fb = buildFeedback({ questionId: "x", graded: "well it is complicated", edited: false, checks: runChecks("well it is complicated"), ai: null });

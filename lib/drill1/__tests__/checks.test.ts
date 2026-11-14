@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fillerCounts, findAnswerWord, firstSentence, runChecks, sentenceCount, splitSentences, wordCount } from "../checks";
+import { fillerCounts, findAnswerWord, firstSentence, looksEnglish, runChecks, sentenceCount, splitSentences, wordCount } from "../checks";
 
 describe("splitSentences", () => {
   it("splits punctuated text", () => {
@@ -69,5 +69,30 @@ describe("runChecks", () => {
   it("marks a short punctuated single sentence as punctuated", () => {
     expect(runChecks("We're on track.").punctuated).toBe(true);
     expect(runChecks("we are on track the api is done and qa starts monday then we will ship it on friday after review").punctuated).toBe(false);
+  });
+});
+
+describe("looksEnglish", () => {
+  it("accepts ordinary English answers, punctuated or not", () => {
+    expect(looksEnglish("Yes, it went out yesterday. We verified it in prod. Next I'll close the ticket.")).toBe(true);
+    expect(looksEnglish("we are on track the api is done and qa starts monday")).toBe(true);
+    expect(looksEnglish("We’re blocked on the auth service until Thursday")).toBe(true);
+  });
+  it("rejects Spanish (Latin letters, almost no English words)", () => {
+    expect(looksEnglish("Sí, vamos bien. La API está lista y el equipo de QA empieza el lunes.")).toBe(false);
+    expect(looksEnglish("vamos bien la api esta lista y el equipo empieza el lunes")).toBe(false);
+  });
+  it("rejects mostly non-ASCII text (Cyrillic, accented)", () => {
+    expect(looksEnglish("Да, мы успеваем к пятнице, API готов")).toBe(false);
+    expect(looksEnglish("Ja, wir sind für Freitag gut im Plan, die API ist fertig.")).toBe(false);
+  });
+  it("gives short text the benefit of the doubt", () => {
+    expect(looksEnglish("API listo")).toBe(true);
+    expect(looksEnglish("")).toBe(true);
+    expect(looksEnglish("42 3")).toBe(true);
+  });
+  it("is part of runChecks", () => {
+    expect(runChecks("We're on track for Friday, the API is done.").english).toBe(true);
+    expect(runChecks("Sí, vamos bien. La API está lista y el QA empieza el lunes.").english).toBe(false);
   });
 });

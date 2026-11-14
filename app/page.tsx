@@ -49,7 +49,7 @@ export default function Home() {
                 <span className="h-1.5 w-8 rounded-full bg-accent" />
                 <span className="h-1.5 w-8 rounded-full bg-line-strong" />
                 <span className="h-1.5 w-8 rounded-full bg-line-strong" />
-                <span className="ml-1">2 s to think</span>
+                <span className="ml-1">5 s to think</span>
               </div>
             </div>
             <div className="relative -mt-3 ml-6 rounded-lg border border-accent-mid/50 bg-accent-soft p-4 sm:ml-10">

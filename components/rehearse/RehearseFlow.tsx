@@ -2,6 +2,7 @@
 // Rehearse my real meeting (Pro): paste the agenda → the server writes the questions for THIS meeting and issues
 // an attempt for each → the same drill 1 flow and feedback, walked through in order.
 
+import { errorMessage } from "@/lib/client-error";
 import { useRef, useState } from "react";
 import { Drill1Flow, type DrillQueueItem } from "@/components/drill/Drill1Flow";
 import { Paywall } from "@/components/paywall";
@@ -45,7 +46,7 @@ export function RehearseFlow() {
       return;
     }
     if (!res.ok || !body.items?.length) {
-      setStage({ k: "input", error: body.error ?? "Something went wrong. Try again." });
+      setStage({ k: "input", error: errorMessage(res.status, body.error, "Something went wrong. Try again.") });
       return;
     }
     runs.current += 1;
