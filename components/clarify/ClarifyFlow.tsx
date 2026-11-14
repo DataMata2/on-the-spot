@@ -278,10 +278,10 @@ export function ClarifyFlow() {
               {scenario.managerName}, {scenario.managerRole}
             </p>
             <div className="mt-3 flex flex-wrap gap-4 text-sm">
-              <button type="button" className="font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => say(managerLine)}>
+              <button type="button" className="inline-flex items-center max-sm:min-h-11 font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => say(managerLine)}>
                 Play again
               </button>
-              <button type="button" className="font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => tts.supported && void tts.speak(managerLine, { rate: SLOW_RATE })}>
+              <button type="button" className="inline-flex items-center max-sm:min-h-11 font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => tts.supported && void tts.speak(managerLine, { rate: SLOW_RATE })}>
                 Slower
               </button>
             </div>
@@ -345,7 +345,7 @@ export function ClarifyFlow() {
             >
               Confirm the task
             </button>
-            <button type="button" onClick={() => void askHint()} className="text-sm font-semibold text-accent hover:underline">
+            <button type="button" onClick={() => void askHint()} className="inline-flex items-center max-sm:min-h-11 text-sm font-semibold text-accent hover:underline">
               I&apos;m stuck: give me a hint
             </button>
           </div>
@@ -359,7 +359,7 @@ export function ClarifyFlow() {
             <button type="button" onClick={() => void sendTurn(raw, edited, mode)} disabled={!edited.trim()} className="h-11 rounded-md bg-accent px-5 font-semibold text-white hover:bg-accent-hover disabled:opacity-45">
               Ask
             </button>
-            <button type="button" onClick={() => { freshCapture(); setPhase({ k: "ask" }); }} className="text-sm font-semibold text-accent hover:underline">
+            <button type="button" onClick={() => { freshCapture(); setPhase({ k: "ask" }); }} className="inline-flex items-center max-sm:min-h-11 text-sm font-semibold text-accent hover:underline">
               Say it again
             </button>
           </div>
@@ -387,7 +387,7 @@ export function ClarifyFlow() {
             label="Your confirmation"
             submitLabel="Confirm"
           />
-          <button type="button" onClick={() => { freshCapture(); setPhase({ k: "ask" }); }} className="self-start text-sm font-semibold text-accent hover:underline">
+          <button type="button" onClick={() => { freshCapture(); setPhase({ k: "ask" }); }} className="inline-flex items-center max-sm:min-h-11 self-start text-sm font-semibold text-accent hover:underline">
             Back to questions
           </button>
         </div>
@@ -400,7 +400,7 @@ export function ClarifyFlow() {
             <button type="button" onClick={() => void sendConfirm(raw, edited, mode)} disabled={!edited.trim()} className="h-11 rounded-md bg-accent px-5 font-semibold text-white hover:bg-accent-hover disabled:opacity-45">
               Check my confirmation
             </button>
-            <button type="button" onClick={() => { freshCapture(); setPhase({ k: "confirm" }); }} className="text-sm font-semibold text-accent hover:underline">
+            <button type="button" onClick={() => { freshCapture(); setPhase({ k: "confirm" }); }} className="inline-flex items-center max-sm:min-h-11 text-sm font-semibold text-accent hover:underline">
               Say it again
             </button>
           </div>
@@ -414,7 +414,7 @@ export function ClarifyFlow() {
       {phase.k === "error" && (
         <div className="flex flex-col items-start gap-3 rounded-md border border-red/30 bg-red-soft p-4" role="alert">
           <p className="text-sm text-red">{phase.message}</p>
-          <button type="button" onClick={retry} className="h-10 rounded-md bg-surface px-4 text-sm font-semibold text-ink ring-1 ring-line-strong hover:bg-paper">
+          <button type="button" onClick={retry} className="h-10 rounded-md bg-surface px-4 max-sm:h-11 text-sm font-semibold text-ink ring-1 ring-line-strong hover:bg-paper">
             {phase.retry === "start" ? "Start a new task" : "Try again"}
           </button>
         </div>

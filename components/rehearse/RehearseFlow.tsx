@@ -91,7 +91,7 @@ export function RehearseFlow() {
               setStage({ k: "input" });
             }}
             disabled={generating}
-            className="text-sm font-semibold text-accent hover:underline disabled:opacity-45"
+            className="inline-flex items-center max-sm:min-h-11 text-sm font-semibold text-accent hover:underline disabled:opacity-45"
           >
             Try an example agenda
           </button>

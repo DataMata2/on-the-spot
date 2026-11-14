@@ -82,7 +82,7 @@ export default function Home() {
           <p className="text-base text-ink">
             <span className="font-semibold">Free: 3 drills a day</span> <span className="text-ink-3">·</span> Pro $12/mo
           </p>
-          <Link href="/drill" className="text-base font-semibold text-accent hover:underline">
+          <Link href="/drill" className="inline-flex items-center max-sm:min-h-11 text-base font-semibold text-accent hover:underline">
             Start the first drill →
           </Link>
         </section>

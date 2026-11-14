@@ -112,7 +112,7 @@ export function FeedbackCard({ feedback: f, strongerOpen, onOpenStronger }: Feed
               <p className="text-xs text-ink-3">Brackets like [your ETA] mark facts you didn&apos;t say. We never make them up.</p>
             </>
           ) : (
-            <button type="button" onClick={onOpenStronger} className="w-fit text-sm font-semibold text-accent hover:underline">
+            <button type="button" onClick={onOpenStronger} className="w-fit text-left text-sm font-semibold text-accent hover:underline max-sm:min-h-11">
               Show a stronger version →
               <span className="block text-xs font-normal text-ink-3">Your next answer then counts as “with help”.</span>
             </button>

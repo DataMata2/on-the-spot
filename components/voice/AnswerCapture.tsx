@@ -137,7 +137,7 @@ export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, max
             <span className="text-xs text-ink-3 tabular-nums">{typed.length}/{maxChars}</span>
             <div className="flex items-center gap-4">
               {!forcedTyping && (
-                <button type="button" onClick={() => switchMode(false)} className="text-sm font-semibold text-accent hover:underline">
+                <button type="button" onClick={() => switchMode(false)} className="inline-flex items-center max-sm:min-h-11 text-sm font-semibold text-accent hover:underline">
                   Use the mic
                 </button>
               )}
@@ -175,7 +175,7 @@ export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, max
               <span className="text-ink-3">{stt.listening ? "Start talking. Your words appear here." : heardNothing || autoAction === "heard_nothing" ? "We didn't hear anything. Try again, or type instead." : "Your words will appear here."}</span>
             )}
           </div>
-          <button type="button" onClick={() => switchMode(true)} className="text-sm font-semibold text-accent hover:underline">
+          <button type="button" onClick={() => switchMode(true)} className="inline-flex items-center max-sm:min-h-11 text-sm font-semibold text-accent hover:underline">
             Type instead
           </button>
         </div>

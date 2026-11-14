@@ -343,7 +343,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
     return (
       <section className="flex flex-col items-center gap-6">
         <Paywall reason={phase.message} />
-        <Link href="/progress" className="text-sm font-semibold text-accent hover:underline">See your progress</Link>
+        <Link href="/progress" className="inline-flex items-center max-sm:min-h-11 text-sm font-semibold text-accent hover:underline">See your progress</Link>
       </section>
     );
   }
@@ -398,14 +398,14 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
         <p className="mt-2 text-xl leading-snug font-semibold text-ink sm:text-2xl">“{question.text}”</p>
         {tts.supported && (
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <button type="button" className="font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => void tts.speak(question.text, { token: ttsToken })}>
+            <button type="button" className="inline-flex items-center max-sm:min-h-11 font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => void tts.speak(question.text, { token: ttsToken })}>
               Replay
             </button>
-            <button type="button" className="font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => void tts.speak(question.text, { rate: SLOW_RATE, token: ttsToken })}>
+            <button type="button" className="inline-flex items-center max-sm:min-h-11 font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => void tts.speak(question.text, { rate: SLOW_RATE, token: ttsToken })}>
               Slower
             </button>
             {phase.k === "question" && (
-              <button type="button" className="rounded-md border border-line-strong px-3 font-semibold text-ink-2 hover:bg-sunken" onClick={() => { tts.cancel(); setPhase({ k: "think" }); }}>
+              <button type="button" className="inline-flex items-center max-sm:min-h-11 rounded-md border border-line-strong px-3 font-semibold text-ink-2 hover:bg-sunken" onClick={() => { tts.cancel(); setPhase({ k: "think" }); }}>
                 Skip reading
               </button>
             )}
@@ -416,7 +416,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
             {hintOpen ? (
               <p className="rounded-md bg-sunken px-3 py-2 text-ink-2">Hint: {TYPE_HINTS[question.type]}</p>
             ) : (
-              <button type="button" className="text-ink-3 hover:underline" onClick={() => setHintOpen(true)}>
+              <button type="button" className="inline-flex items-center max-sm:min-h-11 text-left text-ink-3 hover:underline" onClick={() => setHintOpen(true)}>
                 Show a hint (counts as with help)
               </button>
             )}
@@ -431,7 +431,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
       )}
 
       {(phase.k === "question" || phase.k === "think") && (
-        <button type="button" onClick={typeNow} className="self-center text-sm font-semibold text-accent hover:underline">
+        <button type="button" onClick={typeNow} className="inline-flex items-center max-sm:min-h-11 self-center text-sm font-semibold text-accent hover:underline">
           Type instead
         </button>
       )}
@@ -458,7 +458,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
             <button type="button" onClick={() => void grade(raw, edited, mode)} disabled={!edited.trim()} className="h-12 rounded-md bg-accent px-6 font-semibold text-white hover:bg-accent-hover disabled:opacity-45">
               Get feedback
             </button>
-            <button type="button" onClick={() => { stt.reset(); setPhase({ k: "answer" }); }} className="text-sm font-semibold text-accent hover:underline">
+            <button type="button" onClick={() => { stt.reset(); setPhase({ k: "answer" }); }} className="inline-flex items-center max-sm:min-h-11 text-sm font-semibold text-accent hover:underline">
               Answer again
             </button>
           </div>
@@ -516,7 +516,7 @@ function ErrorBox({ message, onRetry, retryLabel }: { message: string; onRetry()
   return (
     <div className="flex flex-col items-start gap-3 rounded-md border border-red/30 bg-red-soft p-4" role="alert">
       <p className="text-sm text-red">{message}</p>
-      <button type="button" onClick={onRetry} className="h-10 rounded-md bg-surface px-4 text-sm font-semibold text-ink ring-1 ring-line-strong hover:bg-paper">
+      <button type="button" onClick={onRetry} className="h-10 rounded-md bg-surface px-4 max-sm:h-11 text-sm font-semibold text-ink ring-1 ring-line-strong hover:bg-paper">
         {retryLabel}
       </button>
     </div>

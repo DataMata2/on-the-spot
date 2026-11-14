@@ -50,10 +50,10 @@ async function Confirm({ searchParams }: { searchParams: Search }) {
           Go to my progress
         </Link>
         <div className="mt-3 flex flex-col items-center gap-2">
-          <Link href="/drill" className="text-sm font-medium text-accent underline underline-offset-4">
+          <Link href="/drill" className="inline-flex items-center max-sm:min-h-11 text-sm font-medium text-accent underline underline-offset-4">
             Start a drill
           </Link>
-          <Link href="/rehearse" className="text-sm font-medium text-accent underline underline-offset-4">
+          <Link href="/rehearse" className="inline-flex items-center max-sm:min-h-11 text-sm font-medium text-accent underline underline-offset-4">
             Rehearse my real meeting
           </Link>
         </div>

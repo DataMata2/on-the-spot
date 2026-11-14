@@ -28,7 +28,7 @@ export function TranscriptEditor({ raw, value, onChange, maxLength = 1500, label
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-3">
         <span>Fix it if we misheard you. A fix is saved separately; we grade the words, not your accent.</span>
         {edited && (
-          <button type="button" className="font-semibold text-accent hover:underline" onClick={() => onChange(raw)}>
+          <button type="button" className="inline-flex items-center max-sm:min-h-11 font-semibold text-accent hover:underline" onClick={() => onChange(raw)}>
             Restore what we heard
           </button>
         )}

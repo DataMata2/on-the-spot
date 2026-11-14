@@ -12,20 +12,20 @@ export function Footer() {
             your answer landed.
           </p>
         </div>
-        <nav aria-label="Footer" className="flex flex-wrap gap-x-4 gap-y-2 sm:justify-end">
-          <Link href="/drill" className="hover:text-ink">
+        <nav aria-label="Footer" className="flex flex-wrap gap-x-4 gap-y-2 max-sm:-my-3 max-sm:gap-y-0 sm:justify-end">
+          <Link href="/drill" className="inline-flex items-center hover:text-ink max-sm:min-h-11">
             Practice
           </Link>
-          <Link href="/clarify" className="hover:text-ink">
+          <Link href="/clarify" className="inline-flex items-center hover:text-ink max-sm:min-h-11">
             Clarify
           </Link>
-          <Link href="/rehearse" className="hover:text-ink">
+          <Link href="/rehearse" className="inline-flex items-center hover:text-ink max-sm:min-h-11">
             Rehearse
           </Link>
-          <Link href="/progress" className="hover:text-ink">
+          <Link href="/progress" className="inline-flex items-center hover:text-ink max-sm:min-h-11">
             Progress
           </Link>
-          <Link href="/pricing" className="hover:text-ink">
+          <Link href="/pricing" className="inline-flex items-center hover:text-ink max-sm:min-h-11">
             Pricing
           </Link>
         </nav>

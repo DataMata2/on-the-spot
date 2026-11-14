@@ -46,7 +46,7 @@ export function ThinkTimer({ seconds = 5, onDone, skipLabel = "I'm ready" }: Thi
           <span key={i} className={"h-1.5 w-8 rounded-full transition-colors " + (i < seconds - left ? "bg-accent" : "bg-line-strong")} />
         ))}
       </div>
-      <button type="button" onClick={skip} className="mt-1 h-10 rounded-md border border-accent px-4 text-sm font-semibold text-accent hover:bg-accent-soft">
+      <button type="button" onClick={skip} className="mt-1 h-10 rounded-md max-sm:h-11 border border-accent px-4 text-sm font-semibold text-accent hover:bg-accent-soft">
         {skipLabel}
       </button>
     </div>
