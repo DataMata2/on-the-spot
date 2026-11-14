@@ -13,19 +13,19 @@ export function Footer() {
           </p>
         </div>
         <nav aria-label="Footer" className="flex flex-wrap gap-x-4 gap-y-2 max-sm:-my-3 max-sm:gap-y-0 sm:justify-end">
-          <Link href="/drill" className="inline-flex items-center underline-offset-4 hover:text-field-fg hover:underline max-sm:min-h-11">
+          <Link href="/drill" className="inline-flex min-w-11 items-center justify-center underline-offset-4 hover:text-field-fg hover:underline max-sm:min-h-11">
             Practice
           </Link>
-          <Link href="/clarify" className="inline-flex items-center underline-offset-4 hover:text-field-fg hover:underline max-sm:min-h-11">
+          <Link href="/clarify" className="inline-flex min-w-11 items-center justify-center underline-offset-4 hover:text-field-fg hover:underline max-sm:min-h-11">
             Clarify
           </Link>
-          <Link href="/rehearse" className="inline-flex items-center underline-offset-4 hover:text-field-fg hover:underline max-sm:min-h-11">
+          <Link href="/rehearse" className="inline-flex min-w-11 items-center justify-center underline-offset-4 hover:text-field-fg hover:underline max-sm:min-h-11">
             Rehearse
           </Link>
-          <Link href="/progress" className="inline-flex items-center underline-offset-4 hover:text-field-fg hover:underline max-sm:min-h-11">
+          <Link href="/progress" className="inline-flex min-w-11 items-center justify-center underline-offset-4 hover:text-field-fg hover:underline max-sm:min-h-11">
             Progress
           </Link>
-          <Link href="/pricing" className="inline-flex items-center underline-offset-4 hover:text-field-fg hover:underline max-sm:min-h-11">
+          <Link href="/pricing" className="inline-flex min-w-11 items-center justify-center underline-offset-4 hover:text-field-fg hover:underline max-sm:min-h-11">
             Pricing
           </Link>
         </nav>

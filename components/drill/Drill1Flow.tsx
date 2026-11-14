@@ -552,12 +552,12 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
           <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr] lg:gap-x-16 lg:gap-y-10">
             <FeedbackCard feedback={feedback} strongerOpen={strongerOpen} onOpenStronger={() => setStrongerOpen(true)} />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:col-start-1 lg:row-start-2 lg:self-start xl:flex-row">
-              <Button variant={inherit ? "primary" : "lemon"} size="lg" onClick={retry} className="min-h-16 flex-col gap-0 px-7 py-2 text-center leading-tight whitespace-normal">
-                <span className="text-[1.0625rem] font-bold">
+              <Button variant={inherit ? "primary" : "lemon"} size="lg" onClick={retry} className="min-h-16 max-w-full flex-col gap-0 px-6 py-2.5 text-center leading-tight whitespace-normal">
+                <span className="text-[1.0625rem] font-bold whitespace-normal">
                   {queue ? (queueLast ? "Finish the rehearsal" : `Next question (${queuePos + 1} of ${queue.length})`) : "Try again on a new question"}
                 </span>
                 {!queueLast && (
-                  <span className="text-[0.8125rem] font-medium">
+                  <span className="text-[0.8125rem] font-medium whitespace-normal">
                     {strongerOpen && (!queue || queue[queuePos]?.question.type === question.type)
                       ? "Counts as with help: you saw the stronger version"
                       : "Counts as independent"}

@@ -162,7 +162,7 @@ export function ProgressCard() {
       <Link
         href="/clarify"
         data-field="paper"
-        className="group flex items-center justify-between gap-4 rounded-card p-5 shadow-sticker-sm transition-transform hover:-translate-y-0.5 sm:p-6"
+        className="group flex items-center justify-between gap-4 rounded-card p-5 shadow-sticker-sm transition-transform hover:-translate-y-0.5 focus-visible:outline-ink sm:p-6"
       >
         <div>
           <p className="type-label text-ink-2">Drill 2 · {pro ? "Pro" : drill2Used ? "Pro" : "1 free try"}</p>
@@ -175,7 +175,7 @@ export function ProgressCard() {
       <Link
         href="/rehearse"
         data-field="ink"
-        className="group flex items-center justify-between gap-4 rounded-card p-5 shadow-sticker-sm transition-transform hover:-translate-y-0.5 sm:p-6"
+        className="group flex items-center justify-between gap-4 rounded-card p-5 shadow-sticker-sm transition-transform hover:-translate-y-0.5 focus-visible:outline-ink sm:p-6"
       >
         <div>
           <p className="type-label text-lemon">Pro</p>
