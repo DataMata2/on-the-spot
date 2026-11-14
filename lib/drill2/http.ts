@@ -168,7 +168,7 @@ export function turnHandler() {
           changed: Boolean(turn.changeLine),
           suggestConfirm,
           progress: progressOf(session),
-          source: { extractor: ex.source, character },
+          source: { extractor: ex.extractor, character },
         };
       });
       return json(result);
@@ -208,7 +208,11 @@ export interface ConfirmResponse {
   grade: Grade;
   utterance: string;
   input: "voice" | "typed" | "edited";
-  source: "ai" | "fallback";
+  /**
+   * Who did what: `extractor` found the evidence spans ("ai" model or "fallback" keyword rules); `grader` decided
+   * every fact's status, and it is always the deterministic engine (each FactGrade also says source "engine").
+   */
+  source: { extractor: "ai" | "fallback"; grader: "engine" };
   thread: { role: "manager" | "user"; text: string }[];
 }
 
@@ -244,7 +248,7 @@ export function confirmHandler() {
         const ex = await extract(session.scenario, utterance, "confirm", request.signal);
         session.grade = gradeConfirmation(session.scenario, session.state, ex.fields, { utterance });
         session.thread.push({ role: "user", text: utterance });
-        return { grade: session.grade, utterance, input, source: ex.source, thread: session.thread };
+        return { grade: session.grade, utterance, input, source: { extractor: ex.extractor, grader: "engine" }, thread: session.thread };
       });
       void requestId;
       return json(result);

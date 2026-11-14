@@ -4,13 +4,15 @@
 import {
   clockToMinutes,
   hasPhrase,
-  matchParts,
   matchTime,
   normaliseText,
   parseNumber,
   parseTime,
   parseWeekday,
+  readParts,
   stripNegated,
+  timeRelation,
+  type TimeRelation,
 } from "./normalise";
 import type {
   DrillState,
@@ -23,6 +25,7 @@ import type {
   FactStatus,
   Grade,
   Scenario,
+  Slot,
   TurnResult,
 } from "./types";
 
@@ -135,36 +138,77 @@ export function useHint(s: Scenario, state: DrillState): { state: DrillState; hi
 
 // ---------- grading ----------
 
-type Primary = "ok" | "wrong" | "outdated" | "ambiguous" | "none" | "skip";
+type Primary = "ok" | "wrong" | "wrong_unit" | "wrong_relation" | "outdated" | "ambiguous" | "none" | "skip";
+
+/**
+ * Read one fact's slot from the user's words: the entities, the time and its relation word, the number and its
+ * unit, the day, and the polarity. Deterministic, from the text only; the AI and the keyword fallback both end here.
+ */
+export function readSlot(fact: Fact, text: string): Slot {
+  const parts = fact.parts ?? [];
+  const pr = parts.length ? readParts(text, parts) : null;
+  const slot: Slot = { evidence: text, polarity: pr?.negated.length ? "negated" : "affirmed" };
+  if (pr) {
+    slot.entities = {
+      present: parts.filter((p) => pr.match[p.id] === "present").map((p) => p.id),
+      conflict: parts.filter((p) => pr.match[p.id] === "conflict").map((p) => p.id),
+      extra: pr.extra ? pr.extra[1] : null,
+    };
+  }
+  const check = fact.check;
+  if (check.kind === "time") {
+    const t = parseTime(text);
+    slot.time = { kind: t.kind, relation: timeRelation(text), ...(t.kind === "definite" ? { minutes: t.minutes } : {}) };
+  } else if (check.kind === "number") {
+    const n = parseNumber(text, check.units, { otherUnits: check.otherUnits, bareNumberOk: check.bareNumberOk });
+    slot.count =
+      n.kind === "value" ? { kind: "value", value: n.n } : n.kind === "wrong_unit" ? { kind: "wrong_unit", value: n.n, unit: n.unit } : { kind: n.kind };
+  } else if (check.kind === "weekday") {
+    const d = parseWeekday(text);
+    slot.day = d.kind === "value" ? { kind: "value", value: d.day } : { kind: d.kind };
+  }
+  return slot;
+}
 
 function sameValue(check: FactCheck, other: FactCheck | null, value: number | string): boolean {
   return other !== null && other.kind === check.kind && "value" in other && other.value === value;
 }
 
-function primaryOf(check: FactCheck, quote: string, outdated: FactCheck | null): Primary {
+/** Does the relation the user said contradict the fact's? A deadline ("by") can't be "after"; a meeting time ("at") can't be before or after. */
+function relationContradicts(fact: "by" | "at", said: TimeRelation): boolean {
+  if (fact === "by") return said === "after" || said === "from";
+  return said === "after" || said === "before";
+}
+
+function primaryOf(check: FactCheck, slot: Slot, quote: string, outdated: FactCheck | null): Primary {
   switch (check.kind) {
     case "number": {
-      const p = parseNumber(quote, check.units);
-      if (p.kind === "ambiguous") return "ambiguous";
-      if (p.kind === "none") return "none";
-      if (p.n === check.value) return "ok";
-      return sameValue(check, outdated, p.n) ? "outdated" : "wrong";
+      const c = slot.count!;
+      if (c.kind === "wrong_unit") return "wrong_unit";
+      if (c.kind === "ambiguous") return "ambiguous";
+      if (c.kind === "none") return "none";
+      if (c.value === check.value) return "ok";
+      return sameValue(check, outdated, c.value!) ? "outdated" : "wrong";
     }
     case "time": {
       const target = clockToMinutes(check.value);
-      const m = matchTime(parseTime(quote), target, check.bareHourOk);
-      if (m === "match") return "ok";
-      if (m === "ambiguous") return "ambiguous";
+      const parsed = parseTime(quote);
+      const m = matchTime(parsed, target, check.bareHourOk);
+      if (m === "mismatch") {
+        if (outdated?.kind === "time" && matchTime(parsed, clockToMinutes(outdated.value), true) === "match") return "outdated";
+        return "wrong";
+      }
       if (m === "none") return "none";
-      if (outdated?.kind === "time" && matchTime(parseTime(quote), clockToMinutes(outdated.value), true) === "match") return "outdated";
-      return "wrong";
+      // The right hour with the wrong direction ("after 5 pm" for "before 5 pm") is a contradiction.
+      if (relationContradicts(check.relation, slot.time!.relation)) return "wrong_relation";
+      return m === "match" ? "ok" : "ambiguous";
     }
     case "weekday": {
-      const p = parseWeekday(quote);
-      if (p.kind === "ambiguous" || p.kind === "vague") return "ambiguous";
-      if (p.kind === "none") return "none";
-      if (p.day === check.value) return "ok";
-      return sameValue(check, outdated, p.day) ? "outdated" : "wrong";
+      const d = slot.day!;
+      if (d.kind === "ambiguous" || d.kind === "vague") return "ambiguous";
+      if (d.kind === "none") return "none";
+      if (d.value === check.value) return "ok";
+      return sameValue(check, outdated, d.value!) ? "outdated" : "wrong";
     }
     case "parts":
       return "skip";
@@ -173,35 +217,44 @@ function primaryOf(check: FactCheck, quote: string, outdated: FactCheck | null):
 
 const AMBIGUOUS_NOTE: Record<FactCheck["kind"], string> = {
   time: "Not clear enough to confirm: say a.m. or p.m. (or the exact time).",
-  number: "Not an exact number: say how many.",
+  number: "Not an exact number: say how many (with the unit).",
   weekday: "Not a clear day: name the day.",
   parts: "Not clear enough to confirm.",
 };
 
-/** Grade one fact from the user's own quote. */
+const RELATION_NOTE: Record<"by" | "at", string> = {
+  by: "That's the wrong way round: it has to be done before then, not after.",
+  at: "That's not the same time: it's at that time, not before or after it.",
+};
+
+/** Grade one fact from the user's own quote. The status comes only from the engine's reading of that quote. */
 export function gradeFact(
   fact: Fact,
   quote: string | null,
   ctx: { hidden: boolean; revealed: boolean; outdated?: FactCheck | null },
 ): FactGrade {
-  const base = { key: fact.key, label: fact.label, expected: fact.display, hidden: ctx.hidden, quote: quote || null };
+  const q = quote?.trim() ?? "";
+  const slot = q ? readSlot(fact, q) : null;
+  const base = { key: fact.key, label: fact.label, expected: fact.display, hidden: ctx.hidden, quote: quote || null, source: "engine" as const, slot };
   const done = (status: FactStatus, reason: FactReason | undefined, note: string): FactGrade => {
     const guessed = status === "correct" && ctx.hidden && !ctx.revealed;
     return { ...base, status, reason, guessed, note: guessed ? "Right, but you never asked: that was a guess." : note };
   };
-  const q = quote?.trim() ?? "";
-  if (!q) return done("missing", "not_mentioned", "You didn't say this back.");
+  if (!q || !slot) return done("missing", "not_mentioned", "You didn't say this back.");
 
-  const primary = primaryOf(fact.check, q, ctx.outdated ?? null);
+  const primary = primaryOf(fact.check, slot, q, ctx.outdated ?? null);
   const parts = fact.parts ?? [];
-  const pm = parts.length ? matchParts(q, parts) : {};
-  const conflict = parts.some((p) => pm[p.id] === "conflict");
-  const present = parts.filter((p) => pm[p.id] === "present").length;
-  const absentLabels = parts.filter((p) => pm[p.id] !== "present").map((p) => p.label);
+  const ent = slot.entities;
+  const present = ent?.present.length ?? 0;
+  const absentLabels = parts.filter((p) => !ent?.present.includes(p.id)).map((p) => p.label);
 
+  if (slot.polarity === "negated") return done("contradicted", "negated", `You said you won't: “${q}”. It's ${fact.display}.`);
   if (primary === "outdated") return done("contradicted", "outdated", `That was the old plan. It changed to ${fact.display}.`);
   if (primary === "wrong") return done("contradicted", "wrong_value", `You said “${q}”, but it's ${fact.display}.`);
-  if (conflict) return done("contradicted", "conflict", `“${q}” doesn't match: it's ${fact.display}.`);
+  if (primary === "wrong_unit") return done("contradicted", "wrong_unit", `You said “${q}”: wrong unit. It's ${fact.display}.`);
+  if (primary === "wrong_relation") return done("contradicted", "wrong_relation", RELATION_NOTE[(fact.check as { relation: "by" | "at" }).relation]);
+  if (ent?.extra) return done("contradicted", "conflict", `“${ent.extra}” isn't part of it: it's ${fact.display} only.`);
+  if (ent?.conflict.length) return done("contradicted", "conflict", `“${q}” doesn't match: it's ${fact.display}.`);
   if (primary === "ambiguous") return done("missing", "ambiguous", AMBIGUOUS_NOTE[fact.check.kind]);
 
   if (primary === "skip") {
@@ -237,9 +290,14 @@ export function gradeConfirmation(s: Scenario, state: DrillState, fields: Extrac
     const quote = raw && raw !== "unknown" && typeof raw.evidenceQuote === "string" ? raw.evidenceQuote : null;
     const ctx = { hidden, revealed: !hidden || state.revealed.includes(fact.key), outdated };
     let g = gradeFact(eff, quote, ctx);
-    if (!quote && opts.utterance) {
+    if (opts.utterance) {
       const whole = gradeFact(eff, opts.utterance, ctx);
-      if (whole.status === "correct") g = { ...whole, quote: opts.utterance };
+      // No quote: the whole utterance can confirm a fact, never contradict it (other facts' words are in it too).
+      if (!quote && whole.status === "correct") g = whole;
+      // A quote can't hide the user's own contradiction: the extractor picks the span, so "10 a.m." out of
+      // "after Thursday at 10 a.m.", "Acme" out of "Acme and Globex" or "email" out of "I won't email Jenna" is
+      // re-checked against the whole utterance. (The extractor found this fact, so its words are the ones read.)
+      else if (quote && g.status !== "contradicted" && whole.status === "contradicted") g = whole;
     }
     return g;
   });
@@ -296,15 +354,38 @@ function numbersIn(text: string): Set<number> {
   return out;
 }
 
+/** Calendar words: a weekday, a relative day, a month, a named time. Each one is a fact the reply could invent. */
+const CALENDAR_WORDS = new Set([
+  "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+  "mon", "tue", "tues", "wed", "weds", "thu", "thur", "thurs", "fri", "sat", "sun",
+  "today", "tomorrow", "tonight", "yesterday", "weekend", "week", "month",
+  "january", "february", "march", "april", "june", "july", "august", "september", "october", "november", "december",
+  "noon", "midday", "midnight", "morning", "afternoon", "evening", "eod",
+]);
+
+/** Calendar words said in a text, plurals folded ("Tuesdays"), plus ordinals as numbers ("the 21st"). */
+function calendarIn(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const tok of normaliseText(text).split(" ")) {
+    const single = tok.length > 4 && tok.endsWith("s") && CALENDAR_WORDS.has(tok.slice(0, -1)) ? tok.slice(0, -1) : tok;
+    if (CALENDAR_WORDS.has(single)) out.add(single);
+    const ord = /^(\d+)(?:st|nd|rd|th)$/.exec(tok);
+    if (ord) out.add(`#${ord[1]}`);
+  }
+  return out;
+}
+
 /**
- * Guard on the character's phrasing: no number that the allowed lines don't contain, and no value of a hidden
- * fact that isn't revealed yet. Fails → the route sends the allowed lines verbatim.
+ * Guard on the character's phrasing: no number, weekday, date or time word that the allowed lines don't contain,
+ * and no value of a hidden fact that isn't revealed yet. Fails → the route sends the allowed lines verbatim.
  */
 export function characterReplyIsSafe(s: Scenario, state: DrillState, reply: string, allowedLines: string[]): boolean {
   if (!reply.trim() || reply.length > 500) return false;
   const allowed = allowedLines.join(" ");
   const allowedNums = numbersIn(allowed);
   for (const n of numbersIn(reply)) if (!allowedNums.has(n)) return false;
+  const allowedCalendar = calendarIn(allowed);
+  for (const w of calendarIn(reply)) if (!allowedCalendar.has(w)) return false;
   for (const fact of s.hiddenFacts) {
     if (state.revealed.includes(fact.key)) continue;
     for (const part of fact.parts ?? []) {

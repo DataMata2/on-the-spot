@@ -14,7 +14,16 @@ export interface Part {
 
 /** How a fact's value is compared. */
 export type FactCheck =
-  | { kind: "number"; value: number; /** Unit words the number goes with ("slides"). */ units?: string[] }
+  | {
+      kind: "number";
+      value: number;
+      /** Unit words the number goes with ("slides", "minutes"). */
+      units?: string[];
+      /** Units of a different size ("seconds", "hours"): the number said with one of them is wrong. */
+      otherUnits?: string[];
+      /** A bare number with no unit counts. Default false: with `units`, "30" alone is ambiguous. */
+      bareNumberOk?: boolean;
+    }
   | {
       kind: "time";
       /** Canonical 24-hour "HH:MM". */
@@ -24,6 +33,11 @@ export type FactCheck =
        * False: the user must make am/pm clear, or the fact stays unconfirmed. Never guess "three" means 15:00.
        */
       bareHourOk: boolean;
+      /**
+       * "by": a deadline. "before"/"by"/"no later than" fit; "after"/"later than"/"past"/"from" contradict.
+       * "at": a meeting time. "after" and "before" contradict; "by" and "from" are let through.
+       */
+      relation: "by" | "at";
     }
   | { kind: "weekday"; value: Weekday }
   /** A set or a text value: every part must be present, in any order. */
@@ -94,7 +108,35 @@ export interface Scenario {
 }
 
 export type FactStatus = "correct" | "missing" | "contradicted";
-export type FactReason = "not_mentioned" | "ambiguous" | "incomplete" | "wrong_value" | "outdated" | "conflict";
+export type FactReason =
+  | "not_mentioned"
+  | "ambiguous"
+  | "incomplete"
+  | "wrong_value"
+  | "wrong_unit"
+  | "wrong_relation"
+  | "outdated"
+  | "conflict"
+  | "negated";
+
+/**
+ * What the engine read from the user's words for one fact. Built by the engine (lib/drill2/engine.ts readSlot)
+ * from an evidence quote, never from a model's own value or label, and the same whether the quote came from the
+ * AI extractor or from the whole utterance (keyword fallback).
+ */
+export interface Slot {
+  /** The user's words this reading rests on. */
+  evidence: string;
+  /** "negated" when the user negates the fact's own value ("I will not send an email to Jenna"). */
+  polarity: "affirmed" | "negated";
+  /** Parts named (ids), and a conflicting value named next to a right one ("Acme and Globex"). */
+  entities?: { present: string[]; conflict: string[]; extra: string | null };
+  /** The time read, and the relation word in front of it ("after", "by"). */
+  time?: { kind: "definite" | "bare" | "ambiguous" | "vague" | "none"; minutes?: number; relation: "before" | "by" | "after" | "from" | "none" };
+  /** The number read, and whether its unit fits ("30 seconds" for minutes is "wrong"). */
+  count?: { kind: "value" | "wrong_unit" | "ambiguous" | "none"; value?: number; unit?: string };
+  day?: { kind: "value" | "ambiguous" | "vague" | "none"; value?: Weekday };
+}
 
 export interface FactGrade {
   key: string;
@@ -109,6 +151,10 @@ export interface FactGrade {
   guessed: boolean;
   /** One short line of feedback. */
   note: string;
+  /** Who decided this status: always the deterministic engine, never a model. */
+  source: "engine";
+  /** What the engine read from `quote`. */
+  slot: Slot | null;
 }
 
 export interface Grade {
