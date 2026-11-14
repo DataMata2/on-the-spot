@@ -4,7 +4,7 @@ import { Wordmark } from "./Wordmark";
 export function Footer() {
   return (
     <footer data-field="ink" className="mt-auto">
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 px-5 py-8 text-sm text-field-muted sm:flex-row sm:items-start sm:justify-between sm:px-8 sm:py-10 lg:box-content lg:px-12">
+      <div className="mx-auto flex w-full max-w-[1296px] flex-col gap-5 px-5 py-8 text-sm text-field-muted sm:flex-row sm:items-start sm:justify-between sm:px-8 sm:py-10 lg:px-12">
         <div className="flex flex-col gap-2.5">
           <Wordmark className="text-field-fg lg:text-[1.3125rem]" />
           <p className="max-w-md">

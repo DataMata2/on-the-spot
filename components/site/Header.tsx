@@ -24,7 +24,7 @@ export interface HeaderProps {
 export function Header({ pro = false }: HeaderProps) {
   return (
     <header className="relative z-20 bg-field text-field-fg">
-      <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between gap-3 px-5 sm:px-8 lg:h-20 lg:box-content lg:px-12">
+      <div className="mx-auto flex h-16 w-full max-w-[1296px] items-center justify-between gap-3 px-5 sm:px-8 lg:h-20 lg:px-12">
         <div className="flex min-w-0 items-center gap-2.5">
           <Link href="/" aria-label="On the Spot home" className="-mx-1 rounded-md px-1 py-1 max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
             <Wordmark className="max-[359px]:text-[1.1875rem]" />
