@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import type Stripe from "stripe";
 import { getGuestId } from "@/lib/guest";
-import { PRO_COOKIE, PRO_DURATION_MS, proSecretFromEnv, signProToken, verifyProToken } from "@/lib/pro-token";
+import { PRO_COOKIE, proExpiryFromCheckout, proSecretFromEnv, signProToken, verifyProToken } from "@/lib/pro-token";
 import { getStripe, isSessionPaid } from "@/lib/stripe";
 
 export { PRO_COOKIE } from "@/lib/pro-token";
@@ -25,6 +25,7 @@ export const CLAIM_ERRORS = [
   "Checkout session not found.",
   "This checkout was started in a different browser.",
   "Payment is not complete yet.",
+  "This subscription period has ended.",
   "We couldn't confirm the payment. Please try again.",
 ] as const;
 
@@ -39,14 +40,17 @@ export async function verifyCheckoutForGuest(sessionId: string, guestId: string 
   if (!/^cs_[A-Za-z0-9_]{8,200}$/.test(sessionId)) return { ok: false, reason: "That checkout link doesn't look right." };
   let session: Stripe.Checkout.Session;
   try {
-    session = await getStripe().checkout.sessions.retrieve(sessionId);
+    session = await getStripe().checkout.sessions.retrieve(sessionId, { expand: ["subscription"] });
   } catch {
     return { ok: false, reason: "Checkout session not found." };
   }
   if (session.metadata?.guestId !== guestId) return { ok: false, reason: "This checkout was started in a different browser." };
   if (!isSessionPaid(session)) return { ok: false, reason: "Payment is not complete yet." };
   const interval = session.metadata?.plan === "monthly" ? "month" : "year";
-  return { ok: true, guestId, expiresAt: Date.now() + PRO_DURATION_MS[interval] };
+  // From Stripe's dates, not Date.now(): re-claiming the same session gives the same expiry (TM-SHARED-04).
+  const expiresAt = proExpiryFromCheckout(session, interval);
+  if (expiresAt <= Date.now()) return { ok: false, reason: "This subscription period has ended." };
+  return { ok: true, guestId, expiresAt };
 }
 
 /** Sets the signed httpOnly Pro cookie. Route handlers / server actions only. Throws when no secret is configured. */

@@ -6,7 +6,7 @@
 import { timingSafeEqual } from "node:crypto";
 import type { SpeechBudget, SpeechKind } from "@/lib/speech-budget";
 import { sttCredits, STT_MAX_BYTES, STT_MAX_SECONDS, ttsCredits, type SpeechConfig } from "./config";
-import type { CreditGuard } from "./credits";
+import type { CreditGuard, CreditHold } from "./credits";
 import { elevenStt, elevenTts, type FetchLike } from "./elevenlabs";
 import { PREWARM_MAX_CHARS, prewarmTexts } from "./prewarm";
 import { checkTtsText, type TtsSigner } from "./tts-allow";
@@ -43,9 +43,26 @@ function log(kind: SpeechKind, amount: number, deps: SpeechDeps, extra = "") {
   console.log(`[elevenlabs] ${kind} ${unit}=${amount}${extra} day=${d.day} total=${d[kind]}/${deps.budget.caps[kind]} credits_used=${deps.budget.creditsUsed()}`);
 }
 
-/** Count credits just spent: against the cached live balance and in the persisted local total. */
-function spendCredits(deps: SpeechDeps, credits: number) {
-  deps.credits.spend(credits);
+/**
+ * Hold the estimated cost of a call against the credit floor AND the daily cap, in one synchronous step (no await
+ * between the check and the hold, so parallel calls can't both pass a check that only one fits). Refreshes the
+ * cached balance first. Returns the hold, or the error code when either guard refuses (nothing held then).
+ */
+async function reserve(deps: SpeechDeps, kind: SpeechKind, amount: number, credits: number): Promise<CreditHold | "unavailable" | "budget"> {
+  await deps.credits.refresh();
+  // Synchronous from here to the return: check-and-hold is atomic on the event loop.
+  const hold = deps.credits.tryReserve(kind, credits);
+  if (!hold) return "unavailable";
+  if (!deps.budget.take(kind, amount)) {
+    hold.release();
+    return "budget";
+  }
+  return hold;
+}
+
+/** Settle a hold to the actual cost: against the cached live balance and in the persisted local total. */
+function settleCredits(deps: SpeechDeps, hold: CreditHold, credits: number) {
+  hold.settle(credits);
   deps.budget.addCredits(credits);
 }
 
@@ -134,8 +151,9 @@ export function sttHandler(deps: SpeechDeps) {
     const estimate = Math.max(clientSecs, audio.size / MAX_BYTES_PER_SECOND, 1);
     if (estimate > STT_MAX_SECONDS) return errorJson(413, "too_long");
     const reserved = Math.ceil(estimate);
-    if (!(await deps.credits.allows("stt", sttCredits(reserved)))) return errorJson(503, "unavailable");
-    if (!deps.budget.take("stt", reserved)) return errorJson(429, "budget");
+    const hold = await reserve(deps, "stt", reserved, sttCredits(reserved));
+    if (hold === "unavailable") return errorJson(503, "unavailable");
+    if (hold === "budget") return errorJson(429, "budget");
 
     try {
       const result = await elevenStt({
@@ -147,11 +165,12 @@ export function sttHandler(deps: SpeechDeps) {
       });
       const actual = result.durationSecs ?? reserved;
       deps.budget.record("stt", actual - reserved);
-      spendCredits(deps, sttCredits(actual));
+      settleCredits(deps, hold, sttCredits(actual));
       log("stt", Math.round(actual * 10) / 10, deps);
       return Response.json({ text: result.text }, { headers: NO_STORE });
     } catch (err) {
       deps.budget.refund("stt", reserved);
+      hold.release();
       console.warn("[elevenlabs] stt failed:", err instanceof Error ? err.message : "error");
       return errorJson(502, "failed");
     }
@@ -171,16 +190,17 @@ function ttsGenerator(deps: SpeechDeps) {
     if (!job) {
       job = (async (): Promise<Uint8Array | TtsErrorCode> => {
         const credits = ttsCredits(ttsModel, text.length);
-        if (!(await deps.credits.allows("tts", credits))) return "unavailable";
-        if (!deps.budget.take("tts", text.length)) return "budget";
+        const hold = await reserve(deps, "tts", text.length, credits);
+        if (typeof hold === "string") return hold;
         try {
           const audio = await elevenTts({ apiKey, voiceId, modelId: ttsModel, format: ttsFormat, text, fetchImpl: deps.fetchImpl });
-          spendCredits(deps, credits);
+          settleCredits(deps, hold, credits);
           log("tts", text.length, deps);
           await deps.cache.set(key, audio);
           return audio;
         } catch (err) {
           deps.budget.refund("tts", text.length);
+          hold.release();
           console.warn("[elevenlabs] tts failed:", err instanceof Error ? err.message : "error");
           return "failed";
         }

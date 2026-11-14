@@ -76,7 +76,7 @@ export function Paywall({ reason, defaultPlan, title = "On the Spot Pro", classN
         <PlanPicker defaultPlan={defaultPlan} />
 
         <div className="flex flex-col gap-1 text-center text-xs text-ink-3">
-          <p>Cancel anytime. No account needed: Pro is tied to this browser.</p>
+          <p>No account needed: Pro is tied to this browser. Subscription details are shown on the Stripe page.</p>
           <p>For comparison: Spleek $14.99/mo · BoldVoice ~$150/yr</p>
         </div>
 

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { QUESTIONS } from "@/lib/drill1/questions";
 import { prewarmHandler, ttsHandler } from "../handlers";
 import { PREWARM_MAX_CHARS, prewarmTexts } from "../prewarm";
+import { ttsCredits } from "../config";
 import { checkTtsText, staticTtsTexts, TtsSigner } from "../tts-allow";
 import { makeDeps, mp3, ttsRequest } from "./helpers";
 
@@ -124,6 +125,31 @@ describe("POST /api/speech/tts", () => {
     expect(a.status).toBe(200);
     expect(b.status).toBe(200);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  // TM-OTS-06: different texts in parallel each hold their credits before the API call.
+  it("parallel requests for different texts near the reserve: only the ones that fit go through", async () => {
+    let release: () => void = () => {};
+    const gate = new Promise<void>((r) => (release = r));
+    const fetchImpl = vi.fn(async () => {
+      await gate;
+      return mp3();
+    });
+    const texts = QUESTIONS.slice(0, 6).map((q) => q.text);
+    const { deps } = makeDeps({ fetchImpl, now: Date.parse("2026-11-14T20:00:00Z"), balance: 3000 });
+    const cost = texts.map((t) => ttsCredits(deps.config.ttsModel, t.length));
+    // Room above the 3,000 reserve for exactly the first two texts.
+    const room = cost[0] + cost[1] + Math.min(...cost.slice(2)) / 2;
+    const fit = makeDeps({ fetchImpl, now: Date.parse("2026-11-14T20:00:00Z"), balance: 3000 + room }).deps;
+    const handler = ttsHandler(fit);
+    const all = Promise.all(texts.map((text) => handler(ttsRequest({ text }))));
+    await new Promise((r) => setTimeout(r, 10));
+    release();
+    const res = await all;
+    expect(res.map((r) => r.status)).toEqual([200, 200, 503, 503, 503, 503]);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect((await fit.credits.remaining())!).toBeGreaterThanOrEqual(3000);
+    expect(fit.budget.today().tts).toBe(texts[0].length + texts[1].length);
   });
 });
 

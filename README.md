@@ -115,6 +115,17 @@ with the test card `4242 4242 4242 4242`, any future date, any CVC. After paymen
 `/checkout/success?session_id=…`, which hands the session to `/api/pro/claim`. In production the cookies are
 `Secure`, so Pro needs HTTPS.
 
+### Known limitations (demo billing)
+
+- **Test-mode subscription.** Checkout creates a real Stripe *test-mode* subscription; no real money moves.
+- **The webhook only logs.** `/api/stripe/webhook` logs `checkout.session.completed` and nothing else: renewals,
+  cancellations and failed payments do not change anyone's access.
+- **Pro is a signed cookie per browser.** `/api/pro/claim` sets an httpOnly `ots_pro` cookie that ends at the
+  subscription's current period end (from Stripe; re-claiming the same session does not extend it). There is no
+  account, so Pro does not follow the user to another browser or device, and clearing cookies loses it.
+- **No self-serve cancel.** There is no customer portal or cancel button in the demo; a test subscription is
+  managed from the Stripe dashboard.
+
 ## Docker / deploy
 
 ```bash

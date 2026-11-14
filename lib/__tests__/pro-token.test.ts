@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { proSecretFromEnv, signProToken, verifyProToken } from "@/lib/pro-token";
+import { describe, expect, it, vi } from "vitest";
+import { PRO_DURATION_MS, proExpiryFromCheckout, proSecretFromEnv, signProToken, verifyProToken } from "@/lib/pro-token";
 
 const SECRET = "test-secret";
 const GUEST = "6f1c2b7e-1d2a-4c3b-9e8f-0a1b2c3d4e5f";
@@ -49,3 +49,33 @@ describe("Pro cookie token", () => {
     expect(proSecretFromEnv({})).toBeNull();
   });
 });
+
+// TM-SHARED-04: the expiry comes from Stripe's data, so re-claiming a session never extends Pro.
+describe("proExpiryFromCheckout", () => {
+  const created = Date.parse("2026-11-14T17:50:00Z") / 1000;
+  const periodEnd = Date.parse("2026-12-14T17:50:00Z") / 1000;
+
+  it("uses the subscription's current period end when it is expanded", () => {
+    const s = { created, subscription: { items: { data: [{ current_period_end: periodEnd }] } } };
+    expect(proExpiryFromCheckout(s, "month")).toBe(periodEnd * 1000);
+  });
+
+  it("falls back to the session's creation plus the plan duration", () => {
+    expect(proExpiryFromCheckout({ created, subscription: "sub_123" }, "month")).toBe(created * 1000 + PRO_DURATION_MS.month);
+    expect(proExpiryFromCheckout({ created, subscription: null }, "year")).toBe(created * 1000 + PRO_DURATION_MS.year);
+    expect(proExpiryFromCheckout({ created, subscription: { items: { data: [] } } }, "year")).toBe(created * 1000 + PRO_DURATION_MS.year);
+  });
+
+  it("is the same on every claim, whatever the clock says", () => {
+    const s = { created, subscription: "sub_123" };
+    const first = proExpiryFromCheckout(s, "month");
+    vi.useFakeTimers();
+    vi.setSystemTime(Date.parse("2026-11-20T00:00:00Z"));
+    try {
+      expect(proExpiryFromCheckout(s, "month")).toBe(first);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+

@@ -2,7 +2,7 @@ import { getAnthropic, MODEL } from "@/lib/ai";
 import { GuardError, guardResponse, readJsonBody } from "@/lib/ai-guard";
 import { attempts, FEEDBACK_PER_ATTEMPT } from "@/lib/drill1/attempts";
 import { MAX_TRANSCRIPT_CHARS, MIN_WORDS, runChecks } from "@/lib/drill1/checks";
-import { buildFeedback, FEEDBACK_SCHEMA, FEEDBACK_SYSTEM, feedbackUserMessage, normalizeAi, type AiFeedback } from "@/lib/drill1/feedback";
+import { buildFeedback, FEEDBACK_SCHEMA, FEEDBACK_SYSTEM, feedbackUserMessage, validateAi, type AiFeedback, type ValidatedAi } from "@/lib/drill1/feedback";
 import { getQuestion } from "@/lib/drill1/questions";
 import { getGuestId } from "@/lib/guest";
 import { takeAiBudget } from "@/lib/limits";
@@ -10,6 +10,10 @@ import { takeAiBudget } from "@/lib/limits";
 const NO_STORE = { "cache-control": "no-store" };
 const FALLBACK = { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const };
 const errorJson = (status: number, error: string, code?: string) => Response.json({ error, code }, { status, headers: NO_STORE });
+
+/** The whole AI part of a request stays within this; a corrective second call is made only if the first ended before RETRY_IF_UNDER_MS. */
+const TOTAL_BUDGET_MS = 25_000;
+const RETRY_IF_UNDER_MS = 12_000;
 
 const clean = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").trim() : "");
 
@@ -49,31 +53,51 @@ export async function POST(request: Request) {
     if (!budget.ok) return errorJson(budget.status, budget.error, budget.code);
     attempt.feedbackCount += 1;
 
+    // The server validates the model output before it reaches the client. When the model claims a quote that is
+    // not in the transcript, or adds a number or day the user never said, ask once more (only while there is time
+    // left in the overall budget); whatever is still invalid after that is shown in its safe form (the step as not
+    // present, the number as a placeholder).
+    const started = Date.now();
     let ai: AiFeedback | null = null;
-    try {
-      const message = await getAnthropic().beta.messages.create(
-        {
-          model: MODEL,
-          max_tokens: 900,
-          output_config: { effort: "low", format: { type: "json_schema", schema: FEEDBACK_SCHEMA } },
-          system: FEEDBACK_SYSTEM,
-          messages: [{ role: "user", content: feedbackUserMessage(question, graded) }],
-          ...FALLBACK,
-        },
-        { signal: request.signal },
-      );
-      if (message.stop_reason === "max_tokens") console.warn("drill1 feedback hit max_tokens; the JSON may be cut off.");
-      const out = message.content.find((b) => b.type === "text");
-      if (out && out.type === "text") {
-        try {
-          ai = normalizeAi(JSON.parse(out.text), graded);
-        } catch {
-          ai = null;
+    let issues: string[] = [];
+    for (let call = 0; call < 2; call++) {
+      const elapsed = Date.now() - started;
+      if (call > 0 && elapsed > RETRY_IF_UNDER_MS) break;
+      try {
+        const message = await getAnthropic().beta.messages.create(
+          {
+            model: MODEL,
+            max_tokens: 900,
+            output_config: { effort: "low", format: { type: "json_schema", schema: FEEDBACK_SCHEMA } },
+            system: FEEDBACK_SYSTEM,
+            messages: [{ role: "user", content: feedbackUserMessage(question, graded) }],
+            ...FALLBACK,
+          },
+          { signal: request.signal, timeout: Math.max(1_000, TOTAL_BUDGET_MS - elapsed), maxRetries: call > 0 ? 0 : undefined },
+        );
+        if (message.stop_reason === "max_tokens") console.warn("drill1 feedback hit max_tokens; the JSON may be cut off.");
+        const out = message.content.find((b) => b.type === "text");
+        let next: ValidatedAi = { ai: null, issues: ["no text"] };
+        if (out && out.type === "text") {
+          try {
+            next = validateAi(JSON.parse(out.text), graded);
+          } catch {
+            next = { ai: null, issues: ["not JSON"] };
+          }
         }
+        // Keep the better of the two answers: a usable one over none, then the one with fewer corrections.
+        if (next.ai && (!ai || next.issues.length < issues.length)) {
+          ai = next.ai;
+          issues = next.issues;
+        }
+        if (ai && issues.length === 0) break;
+        console.warn(`drill1 feedback: model output needed corrections (call ${call + 1}): ${(next.ai ? next.issues : ["unusable"]).join("; ")}`);
+        if (!next.ai && call > 0) break;
+      } catch (err) {
+        if (request.signal.aborted) return new Response(null, { status: 499 });
+        console.error("drill1 feedback AI call failed:", err instanceof Error ? err.message : err);
+        break;
       }
-    } catch (err) {
-      if (request.signal.aborted) return new Response(null, { status: 499 });
-      console.error("drill1 feedback AI call failed:", err instanceof Error ? err.message : err);
     }
 
     return Response.json(buildFeedback({ questionId: question.id, graded, edited, checks, ai }), { headers: NO_STORE });

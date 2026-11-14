@@ -24,6 +24,15 @@ export interface CreditGuardOptions {
   ttlMs?: number;
 }
 
+/** Credits held for one call in flight. */
+export interface CreditHold {
+  readonly credits: number;
+  /** The call went through: stop holding and count `actual` credits as spent (against the cached live balance). */
+  settle(actual: number): void;
+  /** The call failed or was refused: stop holding, nothing spent. */
+  release(): void;
+}
+
 export class CreditGuard {
   private balance: number | null = null;
   private readAt = -Infinity;
@@ -41,10 +50,17 @@ export class CreditGuard {
 
   /**
    * The balance: the lower of the live value (cached) and the local estimate, whichever exists; null when neither.
-   * The lower one, because ElevenLabs' character_count can lag behind calls just made.
+   * The lower one, because ElevenLabs' character_count can lag behind calls just made. Credits held by calls in
+   * flight are not subtracted here (see available()).
    */
   async remaining(): Promise<number | null> {
-    const live = await this.liveBalance();
+    await this.liveBalance();
+    return this.snapshot();
+  }
+
+  /** remaining() from what is already known, without a read: synchronous, so a check and a hold can't interleave. */
+  private snapshot(): number | null {
+    const live = this.balance;
     const raw = this.opts.localBalance?.() ?? null;
     const local = raw === null ? null : Math.max(0, raw);
     if (live !== null && (local === null || live <= local)) {
@@ -53,6 +69,48 @@ export class CreditGuard {
     }
     this.source = local === null ? "none" : "local";
     return local;
+  }
+
+  /** Credits held by calls in flight (reserved, not settled yet). */
+  private held = 0;
+
+  /** The balance minus the credits held by calls in flight; null when unknown. Synchronous. */
+  available(): number | null {
+    const left = this.snapshot();
+    return left === null ? null : left - this.held;
+  }
+
+  /** Refresh the cached live balance if it is stale. Call before tryReserve(). */
+  async refresh(): Promise<void> {
+    await this.liveBalance();
+  }
+
+  /**
+   * Hold `credits` for a call about to be made, in one synchronous step: false (nothing held) when the balance
+   * minus what other calls already hold would end below the floor. An unknown balance allows it (the daily caps
+   * still bound the spend). Every hold must end with settle() or release().
+   */
+  tryReserve(kind: SpeechKind, credits: number): CreditHold | null {
+    const amount = Math.max(0, credits);
+    const left = this.available();
+    if (left !== null && left - amount < this.floor(kind)) return null;
+    this.held += amount;
+    let open = true;
+    const close = () => {
+      if (!open) return false;
+      open = false;
+      this.held = Math.max(0, this.held - amount);
+      return true;
+    };
+    return {
+      credits: amount,
+      settle: (actual: number) => {
+        if (close()) this.spend(actual);
+      },
+      release: () => {
+        close();
+      },
+    };
   }
 
   private async liveBalance(): Promise<number | null> {
@@ -88,10 +146,12 @@ export class CreditGuard {
 
   /**
    * May `kind` spend about `credits` now? An unreadable balance allows it (the daily caps still bound the spend);
-   * a known one must stay at or above the floor after the call.
+   * a known one, minus the credits held by calls in flight, must stay at or above the floor after the call.
+   * Only a hint (for /api/speech/config): a call must hold its credits with tryReserve().
    */
   async allows(kind: SpeechKind, credits = 0): Promise<boolean> {
-    const left = await this.remaining();
+    await this.liveBalance();
+    const left = this.available();
     if (left === null) return true;
     return left - Math.max(0, credits) >= this.floor(kind);
   }

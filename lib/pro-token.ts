@@ -10,6 +10,25 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** How long a grant lasts per billing interval (a little slack past one period). */
 export const PRO_DURATION_MS = { month: 32 * DAY_MS, year: 367 * DAY_MS } as const;
 
+/** The parts of a Checkout Session (with `subscription` expanded, or not) that fix when Pro access ends. */
+export interface CheckoutTiming {
+  /** Session creation, seconds since epoch (Stripe's `created`). */
+  created: number;
+  subscription?: string | { items?: { data?: { current_period_end?: number | null }[] } | null } | null;
+}
+
+/**
+ * When Pro access from a paid checkout ends, from Stripe's data only (never the time of the claim, so claiming the
+ * same session again can't extend it): the subscription's current period end when the subscription is expanded,
+ * else the session's creation time plus the plan's duration.
+ */
+export function proExpiryFromCheckout(session: CheckoutTiming, interval: keyof typeof PRO_DURATION_MS): number {
+  const sub = session.subscription;
+  const ends = typeof sub === "object" && sub ? (sub.items?.data ?? []).map((i) => i.current_period_end ?? 0).filter((n) => n > 0) : [];
+  if (ends.length) return Math.max(...ends) * 1000;
+  return session.created * 1000 + PRO_DURATION_MS[interval];
+}
+
 function sign(payload: string, secret: string): string {
   return createHmac("sha256", secret).update(payload).digest("base64url");
 }

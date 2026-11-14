@@ -2,7 +2,7 @@
 // honest (quotes must be real substrings of the transcript; the stronger version may not add numbers or days
 // the user never said). No I/O; unit-tested in __tests__/feedback.test.ts.
 
-import type { DeterministicChecks } from "./checks";
+import { firstSentence, type DeterministicChecks } from "./checks";
 import { TYPE_LABELS, type ColdQuestion } from "./questions";
 
 export type Verdict = "yes" | "partly" | "no";
@@ -134,21 +134,39 @@ export function findSpan(text: string, quote: string): string | null {
 }
 
 const DAY_RE = /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight)\b/gi;
-const NUM_RE = /\$?\b\d+(?:[.,]\d+)*%?/g;
+/**
+ * A whole number token: integers, thousands ("3,000"), decimals ("3.5"), fractions ("1/2"), clock times ("10:30"),
+ * an optional leading "$" and trailing "%". A unit glued on ("5pm", "10k", "2x") is not part of the token, so
+ * "5pm" and "5 pm" both carry the number "5".
+ */
+const NUM_RE = /(?<![\d.,/:])\$?\d+(?:[.,/:]\d+)*(?:\s?(?:%|percent\b))?/gi;
+
+/** The canonical form of a number token: no "$", no thousands commas, "percent" → "%". */
+function canonNumber(m: string): string {
+  return m
+    .toLowerCase()
+    .replace(/^\$/, "")
+    .replace(/\s?percent$/, "%")
+    .replace(/\s+/g, "")
+    .replace(/,(?=\d{3}(?:\D|$))/g, "");
+}
+
+/** The whole number tokens of a text, canonical. */
+export function numberTokens(text: string): Set<string> {
+  return new Set((text.match(NUM_RE) ?? []).map(canonNumber));
+}
 
 /**
- * The model must not add numbers or days the user never said: any number or weekday in the rewrite that is not in
- * the transcript becomes a placeholder.
+ * The model must not add numbers or days the user never said: any number in the rewrite that is not a whole number
+ * token of the transcript (so "3.5" is new even when "3" and "5" were said) and any weekday not in the transcript
+ * becomes a placeholder.
  */
 export function guardStrongerVersion(rewrite: string, transcript: string): string {
   const t = transcript.toLowerCase();
-  const digits = new Set((t.match(/\d+/g) ?? []).map(String));
+  const said = numberTokens(transcript);
   const guard = (part: string) =>
     part
-      .replace(NUM_RE, (m) => {
-        const parts = m.match(/\d+/g) ?? [];
-        return parts.every((p) => digits.has(p)) ? m : "[your number]";
-      })
+      .replace(NUM_RE, (m) => (said.has(canonNumber(m)) ? m : "[your number]"))
       .replace(DAY_RE, (m) => (t.includes(m.toLowerCase()) ? m : "[the date]"));
   // Text already inside [placeholders] is left alone (no nested brackets).
   return rewrite
@@ -161,37 +179,81 @@ export function guardStrongerVersion(rewrite: string, transcript: string): strin
 const VERDICTS: readonly Verdict[] = ["yes", "partly", "no"];
 const str = (v: unknown, max = 600) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 
-function quoted(v: unknown, transcript: string): Quoted {
+/** A structure step counts as present only with a quote that was found in the transcript. */
+function quoted(v: unknown, transcript: string): Quoted & { unverified: boolean } {
   const o = (typeof v === "object" && v !== null ? v : {}) as Record<string, unknown>;
   const quote = findSpan(transcript, str(o.quote));
-  return { present: o.present === true, quote };
+  const claimed = o.present === true;
+  return { present: claimed && quote !== null, quote, unverified: claimed && quote === null };
 }
 
-/** Validate and clean the model's JSON; null when it is unusable. Quotes not found in the transcript are dropped. */
-export function normalizeAi(raw: unknown, transcript: string): AiFeedback | null {
-  if (typeof raw !== "object" || raw === null) return null;
+export interface ValidatedAi {
+  /** The cleaned output (null when unusable). Always safe to show: invalid parts are already replaced. */
+  ai: AiFeedback | null;
+  /** What the model got wrong and the server had to correct; empty when the output was clean. */
+  issues: string[];
+}
+
+/**
+ * Validate and clean the model's JSON before it reaches the client. Quotes not found in the transcript are
+ * dropped, and a structure step without a verified quote is shown as not present. Numbers or days the user never
+ * said become placeholders in the stronger version. `issues` lists each correction, so the route can ask again.
+ */
+export function validateAi(raw: unknown, transcript: string): ValidatedAi {
+  if (typeof raw !== "object" || raw === null) return { ai: null, issues: ["not an object"] };
   const r = raw as Record<string, unknown>;
   const af = (typeof r.answerFirst === "object" && r.answerFirst !== null ? r.answerFirst : null) as Record<string, unknown> | null;
-  if (!af || !VERDICTS.includes(af.verdict as Verdict)) return null;
+  if (!af || !VERDICTS.includes(af.verdict as Verdict)) return { ai: null, issues: ["no answer-first verdict"] };
   const st = (typeof r.structure === "object" && r.structure !== null ? r.structure : {}) as Record<string, unknown>;
+  const issues: string[] = [];
+  const steps = { point: quoted(st.point, transcript), reason: quoted(st.reason, transcript), nextStep: quoted(st.nextStep, transcript) };
+  for (const [k, q] of Object.entries(steps)) if (q.unverified) issues.push(`${k}: quote not in the transcript`);
+  const strip = ({ present, quote }: Quoted): Quoted => ({ present, quote });
+  const rewrite = str(r.strongerVersion, 1200);
+  const guarded = guardStrongerVersion(rewrite, transcript);
+  if (guarded !== rewrite.trim()) issues.push("strongerVersion: new number or day");
+  const evidenceRaw = str(af.evidenceQuote);
+  const evidenceQuote = findSpan(transcript, evidenceRaw);
+  if (evidenceRaw && evidenceQuote === null) issues.push("answerFirst: evidence not in the transcript");
   return {
-    english: r.english !== false,
-    answerFirst: { verdict: af.verdict as Verdict, evidenceQuote: findSpan(transcript, str(af.evidenceQuote)), note: str(af.note, 300) },
-    structure: { point: quoted(st.point, transcript), reason: quoted(st.reason, transcript), nextStep: quoted(st.nextStep, transcript) },
-    strongerVersion: guardStrongerVersion(str(r.strongerVersion, 1200), transcript),
-    tip: str(r.tip, 300),
+    ai: {
+      english: r.english !== false,
+      answerFirst: { verdict: af.verdict as Verdict, evidenceQuote, note: str(af.note, 300) },
+      structure: { point: strip(steps.point), reason: strip(steps.reason), nextStep: strip(steps.nextStep) },
+      strongerVersion: guarded,
+      tip: str(r.tip, 300),
+    },
+    issues,
   };
+}
+
+/** Validate and clean the model's JSON; null when it is unusable. See validateAi. */
+export function normalizeAi(raw: unknown, transcript: string): AiFeedback | null {
+  return validateAi(raw, transcript).ai;
+}
+
+/**
+ * Does the verified `evidence` start inside the opening (the first sentence, capped at FIRST_SENTENCE_MAX_WORDS
+ * words)? A quote that only appears later does not prove the answer came first.
+ */
+export function evidenceInOpening(text: string, evidence: string | null): boolean {
+  if (!evidence) return false;
+  const at = text.indexOf(evidence);
+  if (at < 0) return false;
+  const opening = findSpan(text, firstSentence(text));
+  return opening !== null && at < text.indexOf(opening) + opening.length;
 }
 
 /**
  * The final answer-first verdict from the model's judgment and the deterministic word check:
- * - model "yes" stays "yes" only when backed by the word check or a verified evidence quote; else "partly".
+ * - model "yes" stays "yes" only when backed by the word check or a verified evidence quote in the opening; else
+ *   "partly".
  * - model "partly" / "no" stay as they are (a status word alone, like "will", does not prove an answer).
  * - no model result: "partly" when the word check passed, else "no".
  */
-export function combineVerdict(ai: Verdict | null, wordCheckPassed: boolean, evidenceVerified: boolean): Verdict {
+export function combineVerdict(ai: Verdict | null, wordCheckPassed: boolean, evidenceInOpening: boolean): Verdict {
   if (ai === null) return wordCheckPassed ? "partly" : "no";
-  if (ai === "yes") return wordCheckPassed || evidenceVerified ? "yes" : "partly";
+  if (ai === "yes") return wordCheckPassed || evidenceInOpening ? "yes" : "partly";
   return ai;
 }
 
@@ -236,7 +298,7 @@ export function buildFeedback(args: {
     edited,
     checks,
     answerFirst: {
-      verdict: combineVerdict(ai?.answerFirst.verdict ?? null, wordPassed, evidence !== null),
+      verdict: combineVerdict(ai?.answerFirst.verdict ?? null, wordPassed, evidenceInOpening(graded, evidence)),
       ai: ai?.answerFirst.verdict ?? null,
       wordCheck: { passed: wordPassed, word: checks.answerWord },
       evidenceQuote: evidence,
