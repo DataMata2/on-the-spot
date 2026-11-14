@@ -3,6 +3,8 @@ import { Wordmark } from "./Wordmark";
 
 const LINKS = [
   { href: "/drill", label: "Practice" },
+  // Hidden on narrow phones so the nav fits; /progress links to it too.
+  { href: "/rehearse", label: "Rehearse", narrow: "max-sm:hidden" },
   { href: "/progress", label: "Progress" },
   { href: "/pricing", label: "Pricing" },
 ] as const;
@@ -32,7 +34,7 @@ export function Header({ pro = false }: HeaderProps) {
             <Link
               key={l.href}
               href={l.href}
-              className="rounded-md px-2 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-sunken hover:text-ink sm:px-3"
+              className={`rounded-md px-2 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-sunken hover:text-ink sm:px-3 ${"narrow" in l ? l.narrow : ""}`}
             >
               {l.label}
             </Link>

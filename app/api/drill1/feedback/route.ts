@@ -15,7 +15,8 @@ const clean = (v: unknown) => (typeof v === "string" ? v.replace(/\s+/g, " ").tr
 
 /**
  * POST /api/drill1/feedback `{ attemptId, questionId, rawTranscript, editedTranscript? }` → Drill1Feedback.
- * The question text comes from the server's bank (by the attempt's question id), never from the client.
+ * The question text comes from the server (the bank by the attempt's question id, or the rehearse question
+ * stored with the attempt), never from the client.
  * Too-short answers get `{ status: "too_short" }` with no AI call. When the AI call fails, the deterministic
  * checks are still returned (`aiAvailable: false`).
  */
@@ -26,7 +27,8 @@ export async function POST(request: Request) {
     if (!guestId) return errorJson(400, "Start a drill first.", "no_attempt");
     const attempt = attempts.get(body.attemptId, guestId);
     if (!attempt || attempt.questionId !== body.questionId) return errorJson(400, "This question has expired. Start a new one.", "no_attempt");
-    const question = getQuestion(attempt.questionId);
+    // A rehearse attempt carries its own server-generated question; otherwise it comes from the bank.
+    const question = attempt.custom ?? getQuestion(attempt.questionId);
     if (!question) return errorJson(400, "Unknown question.", "no_attempt");
 
     const raw = clean(body.rawTranscript);

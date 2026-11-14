@@ -8,6 +8,10 @@
 //   An answer is "with help" when, before giving it, the user opened the hint for this question OR opened the
 //   stronger version of the previous answer in this session (it is a model answer for the same question type).
 //   Otherwise it is "independent". Fixing a misheard transcript does not count as help (it is stored as `edited`).
+//
+// With `queue` (Rehearse my real meeting), the questions and their attempts were already issued by the server
+// (POST /api/rehearse/questions): the flow walks through them in order instead of calling /api/drill1/start, and the
+// stronger version only carries over as help to a next question of the same type.
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -29,6 +33,7 @@ type Phase =
   | { k: "grading" }
   | { k: "feedback" }
   | { k: "limit"; message: string }
+  | { k: "finished" }
   | { k: "error"; message: string; retry: "start" | "grade" };
 
 interface Usage {
@@ -54,7 +59,20 @@ function saveMode(m: AnswerMode) {
   }
 }
 
-export function Drill1Flow() {
+/** A server-issued question with its attempt (from POST /api/rehearse/questions). */
+export interface DrillQueueItem {
+  question: ColdQuestion;
+  attemptId: string;
+}
+
+export interface Drill1FlowProps {
+  /** Drill these questions in order instead of picking from the bank. */
+  queue?: readonly DrillQueueItem[];
+  /** Queue mode: "Rehearse another meeting" on the last screen. */
+  onExit?: () => void;
+}
+
+export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   const tts = useTTS();
   const stt = useSpeechToText({ maxMs: 45_000 });
   const [phase, setPhase] = useState<Phase>({ k: "intro" });
@@ -73,6 +91,7 @@ export function Drill1Flow() {
   const [done, setDone] = useState(0);
 
   const seenRef = useRef<string[]>([]);
+  const queueIdx = useRef(0);
   const tokenRef = useRef(0);
   const gradeAbort = useRef<AbortController | null>(null);
 
@@ -85,35 +104,49 @@ export function Drill1Flow() {
       tts.unlock(); // inside the click, before any await (iOS)
       const token = ++tokenRef.current;
       setPreferTyping(typing);
-      setPhase({ k: "starting" });
-      let res: Response;
-      let body: { question?: ColdQuestion; attemptId?: string; usage?: Usage; pro?: boolean; error?: string; code?: string };
-      try {
-        res = await fetch("/api/drill1/start", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ type, excludeIds: seenRef.current }),
-        });
-        body = await res.json().catch(() => ({}));
-      } catch {
-        setPhase({ k: "error", message: "We couldn't reach the server. Check your connection and try again.", retry: "start" });
-        return;
+      let q: ColdQuestion;
+      let issuedAttempt: string;
+      if (queue) {
+        const item = queue[queueIdx.current];
+        if (!item) {
+          setPhase({ k: "finished" });
+          return;
+        }
+        queueIdx.current += 1;
+        q = item.question;
+        issuedAttempt = item.attemptId;
+      } else {
+        setPhase({ k: "starting" });
+        let res: Response;
+        let body: { question?: ColdQuestion; attemptId?: string; usage?: Usage; pro?: boolean; error?: string; code?: string };
+        try {
+          res = await fetch("/api/drill1/start", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ type, excludeIds: seenRef.current }),
+          });
+          body = await res.json().catch(() => ({}));
+        } catch {
+          setPhase({ k: "error", message: "We couldn't reach the server. Check your connection and try again.", retry: "start" });
+          return;
+        }
+        if (token !== tokenRef.current) return;
+        if (body.usage) setUsage(body.usage);
+        if (typeof body.pro === "boolean") setPro(body.pro);
+        if (res.status === 402) {
+          setPhase({ k: "limit", message: body.error ?? "You've used today's free drills." });
+          return;
+        }
+        if (!res.ok || !body.question || !body.attemptId) {
+          setPhase({ k: "error", message: body.error ?? "Something went wrong. Try again.", retry: "start" });
+          return;
+        }
+        q = body.question;
+        issuedAttempt = body.attemptId;
       }
-      if (token !== tokenRef.current) return;
-      if (body.usage) setUsage(body.usage);
-      if (typeof body.pro === "boolean") setPro(body.pro);
-      if (res.status === 402) {
-        setPhase({ k: "limit", message: body.error ?? "You've used today's free drills." });
-        return;
-      }
-      if (!res.ok || !body.question || !body.attemptId) {
-        setPhase({ k: "error", message: body.error ?? "Something went wrong. Try again.", retry: "start" });
-        return;
-      }
-      const q = body.question;
       seenRef.current = [...seenRef.current, q.id];
       setQuestion(q);
-      setAttemptId(body.attemptId);
+      setAttemptId(issuedAttempt);
       setRaw("");
       setEdited("");
       setFeedback(null);
@@ -125,7 +158,7 @@ export function Drill1Flow() {
       if (tts.supported) await tts.speak(q.text);
       if (token === tokenRef.current) setPhase((p) => (p.k === "question" ? { k: "think" } : p));
     },
-    [tts, stt],
+    [tts, stt, queue],
   );
 
   const grade = useCallback(
@@ -162,7 +195,12 @@ export function Drill1Flow() {
       }
       if (!res.ok || !("status" in body) || body.status !== "ok") {
         const err = body as { error?: string; code?: string };
-        if (err.code === "no_attempt") {
+        if (err.code === "too_long") {
+          // Resending the same text would fail again: back to the answer step to say it shorter.
+          stt.reset();
+          setPhase({ k: "answer", notice: err.error ?? "That answer is too long. Keep it shorter." });
+        } else if (err.code === "no_attempt" || err.code === "attempt_limit") {
+          // This attempt can't be graded again: the only way on is a new question.
           setPhase({ k: "error", message: err.error ?? "This question expired.", retry: "start" });
         } else {
           setPhase({ k: "error", message: err.error ?? "Feedback failed. Try again.", retry: "grade" });
@@ -184,7 +222,7 @@ export function Drill1Flow() {
       });
       setPhase({ k: "feedback" });
     },
-    [question, attemptId, tts, help],
+    [question, attemptId, tts, stt, help],
   );
 
   const onCaptured = ({ raw: text, mode: m }: CapturedAnswer) => {
@@ -207,8 +245,17 @@ export function Drill1Flow() {
 
   const retry = () => {
     if (!question) return;
+    if (queue) {
+      const next = queue[queue.findIndex((i) => i.question.id === question.id) + 1];
+      void startQuestion(null, strongerOpen && next?.question.type === question.type, readMode() === "typed");
+      return;
+    }
     void startQuestion(question.type, strongerOpen, readMode() === "typed");
   };
+
+  /** 1-based position of the current question in the queue (0 outside queue mode). */
+  const queuePos = queue && question ? queue.findIndex((i) => i.question.id === question.id) + 1 : 0;
+  const queueLast = queue ? queuePos >= queue.length : false;
 
   const freeLeft = usage && !pro ? Math.max(0, usage.freePerDay - usage.usedToday) : null;
 
@@ -217,12 +264,25 @@ export function Drill1Flow() {
     return (
       <section className="flex flex-col gap-6">
         <div className="flex flex-col gap-3">
-          <p className="text-sm font-semibold tracking-wide text-accent uppercase">Drill 1 · Cold question</p>
-          <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">Someone in the meeting turns to you.</h1>
-          <p className="text-base text-ink-2">
-            You&apos;ll hear a real work question with no warning. Take 5 seconds to think, then answer out loud, up to 45 seconds.
-            We check one thing first: did your first sentence answer the question?
-          </p>
+          {queue ? (
+            <>
+              <p className="text-sm font-semibold tracking-wide text-accent uppercase">Rehearse · {queue.length} questions from your meeting</p>
+              <h2 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">Now they turn to you.</h2>
+              <p className="text-base text-ink-2">
+                One question at a time, read aloud with no warning. Take 5 seconds to think, then answer out loud, up to 45 seconds.
+                Use your real facts: this is the meeting you&apos;ll actually be in.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-semibold tracking-wide text-accent uppercase">Drill 1 · Cold question</p>
+              <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">Someone in the meeting turns to you.</h1>
+              <p className="text-base text-ink-2">
+                You&apos;ll hear a real work question with no warning. Take 5 seconds to think, then answer out loud, up to 45 seconds.
+                We check one thing first: did your first sentence answer the question?
+              </p>
+            </>
+          )}
         </div>
         <ol className="grid gap-3 text-sm text-ink-2 sm:grid-cols-3">
           {["Hear the question", "5 seconds to think", "Answer, then see what landed"].map((s, i) => (
@@ -267,6 +327,27 @@ export function Drill1Flow() {
     );
   }
 
+  if (phase.k === "finished") {
+    return (
+      <section className="flex flex-col items-start gap-4 rounded-lg border border-line bg-surface p-5 sm:p-6">
+        <h2 className="text-xl font-bold text-ink">That&apos;s the whole meeting.</h2>
+        <p className="text-base text-ink-2">
+          You answered {done} of {queue?.length ?? done} questions out loud. Before the real one, say your first sentence for each topic once more.
+        </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          {onExit && (
+            <button type="button" onClick={onExit} className="h-12 rounded-md bg-accent px-6 font-semibold text-white hover:bg-accent-hover">
+              Rehearse another meeting
+            </button>
+          )}
+          <Link href="/progress" className="flex h-12 items-center justify-center rounded-md border border-line-strong bg-surface px-6 font-semibold text-ink hover:bg-paper">
+            See your progress
+          </Link>
+        </div>
+      </section>
+    );
+  }
+
   if (phase.k === "starting" || !question) {
     if (phase.k === "error") {
       return <ErrorBox message={phase.message} onRetry={() => void startQuestion(null, false, preferTyping)} retryLabel="Start a question" />;
@@ -279,7 +360,10 @@ export function Drill1Flow() {
   return (
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-3">
-        <span className="font-semibold tracking-wide text-accent uppercase">{TYPE_LABELS[question.type]}</span>
+        <span className="font-semibold tracking-wide text-accent uppercase">
+          {queue ? `Question ${queuePos} of ${queue.length} · ` : ""}
+          {TYPE_LABELS[question.type]}
+        </span>
         <span>
           {[phase.k !== "feedback" ? (help === "independent" ? "Counts as independent" : "Counts as with help") : null, freeLeft !== null ? `${freeLeft} free left today` : null]
             .filter(Boolean)
@@ -356,7 +440,7 @@ export function Drill1Flow() {
       {phase.k === "error" && (
         <ErrorBox
           message={phase.message}
-          retryLabel={phase.retry === "grade" ? "Try again" : "Start a new question"}
+          retryLabel={phase.retry === "grade" ? "Try again" : queue ? "Go to the next question" : "Start a new question"}
           onRetry={() => (phase.retry === "grade" ? void grade(raw, edited, mode) : void startQuestion(question.type, false, preferTyping))}
         />
       )}
@@ -366,8 +450,16 @@ export function Drill1Flow() {
           <FeedbackCard feedback={feedback} strongerOpen={strongerOpen} onOpenStronger={() => setStrongerOpen(true)} />
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <button type="button" onClick={retry} className="flex h-13 flex-col items-center justify-center rounded-md bg-accent px-6 text-white hover:bg-accent-hover">
-              <span className="text-base font-semibold">Try again on a new question</span>
-              <span className="text-xs opacity-80">{strongerOpen ? "Counts as with help: you saw the stronger version" : "Counts as independent"}</span>
+              <span className="text-base font-semibold">
+                {queue ? (queueLast ? "Finish the rehearsal" : `Next question (${queuePos + 1} of ${queue.length})`) : "Try again on a new question"}
+              </span>
+              {!queueLast && (
+                <span className="text-xs opacity-80">
+                  {strongerOpen && (!queue || queue[queuePos]?.question.type === question.type)
+                    ? "Counts as with help: you saw the stronger version"
+                    : "Counts as independent"}
+                </span>
+              )}
             </button>
             {done >= 1 && (
               <Link href="/progress" className="flex h-13 items-center justify-center rounded-md border border-line-strong bg-surface px-6 font-semibold text-ink hover:bg-paper">

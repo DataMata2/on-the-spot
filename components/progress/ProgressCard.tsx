@@ -143,6 +143,15 @@ export function ProgressCard() {
         <span className="text-xl text-accent transition-transform group-hover:translate-x-1" aria-hidden="true">→</span>
       </Link>
 
+      <Link href="/rehearse" className="group flex items-center justify-between gap-4 rounded-lg border border-line bg-surface p-5 hover:border-ink-3">
+        <div>
+          <p className="text-xs font-semibold tracking-wide text-accent uppercase">Pro</p>
+          <p className="text-lg font-semibold text-ink">Rehearse my real meeting</p>
+          <p className="text-sm text-ink-2">Paste your agenda, get the questions you&apos;re likely to face, and answer them out loud first.</p>
+        </div>
+        <span className="text-xl text-accent transition-transform group-hover:translate-x-1" aria-hidden="true">→</span>
+      </Link>
+
       {!pro && (
         <div className="flex justify-center">
           <Paywall reason="Keep the streak going: unlimited drills, drill 2 and a daily plan." />

@@ -7,7 +7,7 @@ import { PlanPicker } from "./PlanPicker";
 /**
  * Flip to true once "Rehearse my real meeting" ships; until then the paywall lists it honestly as coming soon.
  */
-export const REHEARSE_AVAILABLE = false;
+export const REHEARSE_AVAILABLE = true;
 
 const UNLOCKS: { title: string; detail: string; soon?: boolean }[] = [
   { title: "Unlimited drills", detail: "Free is 3 drills a day. Pro has no daily cap." },
