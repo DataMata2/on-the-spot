@@ -3,7 +3,7 @@ import { Public_Sans } from "next/font/google";
 import type { ReactNode } from "react";
 import "./globals.css";
 
-// Public Sans: a plain, sturdy grotesque with true tabular figures, so every amount lines up.
+// Public Sans: a plain, sturdy grotesque that stays readable at every size.
 const publicSans = Public_Sans({
   subsets: ["latin"],
   variable: "--font-public-sans",
@@ -11,9 +11,9 @@ const publicSans = Public_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Penaltyproof — never pay an IRS underpayment penalty",
+  title: "On the Spot — answer on the spot at work",
   description:
-    "For US freelancers: how much to set aside from every payment, and the minimum to pay the IRS by each quarterly deadline to avoid the underpayment penalty. Tax year 2026.",
+    "Short spoken drills for the moments English at work goes quiet: answer a question on the spot, then clarify a vague task. Practice out loud, get one clear fix, try again.",
 };
 
 export const viewport: Viewport = {

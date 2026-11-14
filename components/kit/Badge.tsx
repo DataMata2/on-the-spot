@@ -1,10 +1,9 @@
-import type { InstallmentStatus } from "@/lib/tax";
 import { cx } from "./cx";
 
-export type BadgeStatus = InstallmentStatus;
+/** Status of a pill: paid/done (green), due (amber), pastDue (red), upcoming (neutral). */
+export type BadgeStatus = "paid" | "due" | "pastDue" | "upcoming";
 
 export interface BadgeProps {
-  /** Mirrors the engine's instalment status. */
   status: BadgeStatus;
   /** Override the default label ("Paid", "Due", "Past due", "Upcoming"). */
   children?: string;

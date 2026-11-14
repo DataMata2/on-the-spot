@@ -1,5 +1,6 @@
 import "server-only";
 import Stripe from "stripe";
+import { PLANS, type PlanId } from "@/lib/plans";
 
 let client: Stripe | null = null;
 
@@ -21,34 +22,7 @@ export function getStripe(): Stripe {
   return client;
 }
 
-/** Penaltyproof plans (yearly first); prices are created inline via price_data (no Stripe price objects needed). */
-export const PLANS = {
-  yearly: {
-    name: "Penaltyproof Pro — tax year",
-    description: "Full tax year of Penaltyproof Pro",
-    amountCents: 5900,
-    currency: "usd",
-    interval: "year",
-  },
-  monthly: {
-    name: "Penaltyproof Pro",
-    description: "Penaltyproof Pro, billed monthly",
-    amountCents: 999,
-    currency: "usd",
-    interval: "month",
-  },
-} as const;
-
-/** Key of a plan in PLANS. */
-export type PlanId = keyof typeof PLANS;
-
-/** Plan used when none is given. */
-export const DEFAULT_PLAN: PlanId = "yearly";
-
-/** Type guard for plan ids coming from forms/JSON. */
-export function isPlanId(value: unknown): value is PlanId {
-  return typeof value === "string" && Object.hasOwn(PLANS, value);
-}
+export { DEFAULT_PLAN, isPlanId, PLANS, type PlanId } from "@/lib/plans";
 
 /** Public origin of the app: APP_URL if set, else derived from (proxy) request headers. */
 export function getOrigin(req: Request): string {
@@ -73,7 +47,7 @@ export async function createCheckoutSession({
   const p = PLANS[plan];
   return getStripe().checkout.sessions.create({
     mode: "subscription",
-    // US product: always charge in USD, never convert to the visitor's local currency.
+    // Always charge in USD, never convert to the visitor's local currency.
     adaptive_pricing: { enabled: false },
     line_items: [
       {
@@ -90,15 +64,8 @@ export async function createCheckoutSession({
     metadata: { guestId, plan },
     subscription_data: { metadata: { guestId, plan } },
     success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/plan?checkout=cancelled`,
+    cancel_url: `${origin}/pricing`,
   });
-}
-
-/** Formats a plan price, e.g. "$59.00 / year" or "$9.99 / month". */
-export function formatPlanPrice(plan: PlanId): string {
-  const p = PLANS[plan];
-  const amount = new Intl.NumberFormat("en-US", { style: "currency", currency: p.currency }).format(p.amountCents / 100);
-  return `${amount} / ${p.interval}`;
 }
 
 /** True if a completed Checkout Session is paid (or needs no payment). */

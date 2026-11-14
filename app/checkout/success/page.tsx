@@ -1,63 +1,71 @@
-import { Suspense } from "react";
+import type { Metadata } from "next";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getGuestId } from "@/lib/guest";
-import { isSupabaseConfigured, setPro } from "@/lib/supabase";
-import { getStripe, isSessionPaid, sessionCustomerId } from "@/lib/stripe";
+import { redirect } from "next/navigation";
+import { Suspense } from "react";
+import { buttonClasses } from "@/components/kit/Button";
+import { Footer } from "@/components/site/Footer";
+import { SiteHeader } from "@/components/site/SiteHeader";
+import { CLAIM_ERRORS, isProRequest } from "@/lib/pro";
+
+export const metadata: Metadata = { title: "Checkout — On the Spot" };
+
+type Search = PageProps<"/checkout/success">["searchParams"];
 
 export default function CheckoutSuccessPage({ searchParams }: PageProps<"/checkout/success">) {
   return (
-    <main className="flex flex-1 items-center justify-center px-4 py-16">
-      <Card className="w-full max-w-sm text-center">
-        <Suspense fallback={<CardContent>Confirming payment…</CardContent>}>
-          <Confirm searchParams={searchParams} />
-        </Suspense>
-      </Card>
-    </main>
+    <>
+      <SiteHeader />
+      <main className="flex flex-1 items-center justify-center px-4 py-16">
+        <section className="w-full max-w-sm rounded-lg border border-line bg-surface p-6 text-center shadow-raised">
+          <Suspense fallback={<p className="text-sm text-ink-2">Confirming your payment…</p>}>
+            <Confirm searchParams={searchParams} />
+          </Suspense>
+        </section>
+      </main>
+      <Footer />
+    </>
   );
 }
 
-type Result = { title: string; message: string; ok?: boolean };
+const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
 
-/** Verifies the session belongs to this guest and is paid, then records Pro (idempotent). */
-async function confirm(sessionId: string | undefined): Promise<Result> {
-  const fail = (message: string): Result => ({ title: "Payment not confirmed", message });
-  if (!sessionId) return fail("Missing checkout session.");
-  const guestId = await getGuestId();
-  if (!guestId) return fail("No guest session found in this browser.");
-  let session;
-  try {
-    session = await getStripe().checkout.sessions.retrieve(sessionId);
-  } catch {
-    return fail("Checkout session not found.");
-  }
-  if (session.client_reference_id !== guestId) return fail("This checkout belongs to a different guest.");
-  if (!isSessionPaid(session)) return fail("Payment is not complete yet.");
-  if (!isSupabaseConfigured()) return { title: "Payment received", message: "Storage is not configured, so Pro was not saved." };
-  try {
-    await setPro(guestId, { stripeSessionId: session.id, stripeCustomerId: sessionCustomerId(session) });
-  } catch (err) {
-    console.error("success setPro failed:", err instanceof Error ? err.message : err);
-    return fail("Payment received but could not be recorded. Please contact support.");
-  }
-  return { title: "You're Pro", message: "Thanks! Your plan is now Pro.", ok: true };
-}
+/**
+ * Stripe sends the buyer here with ?session_id. Cookies can't be set while a page renders, so the session is
+ * handed to GET /api/pro/claim, which verifies it with Stripe, sets the Pro cookie and comes back with ?ok=1
+ * or ?error=. What this page shows comes from the verified cookie, never from the query string.
+ */
+async function Confirm({ searchParams }: { searchParams: Search }) {
+  const params = await searchParams;
+  const sessionId = one(params.session_id);
+  if (sessionId) redirect(`/api/pro/claim?session_id=${encodeURIComponent(sessionId)}`);
 
-async function Confirm({ searchParams }: { searchParams: PageProps<"/checkout/success">["searchParams"] }) {
-  const raw = (await searchParams).session_id;
-  const result = await confirm(typeof raw === "string" ? raw : undefined);
-  const success = result.ok === true;
+  if (await isProRequest()) {
+    return (
+      <>
+        <h1 className="text-xl font-bold text-ink">You&apos;re on Pro</h1>
+        <p className="mt-2 text-sm text-ink-2">
+          Thanks! Unlimited drills and Clarify the vague task are unlocked in this browser.
+        </p>
+        <Link href="/progress" className={buttonClasses({ fullWidth: true, className: "mt-6" })}>
+          Go to my progress
+        </Link>
+        <Link href="/drill" className="mt-3 inline-block text-sm font-medium text-accent underline underline-offset-4">
+          Start a drill
+        </Link>
+      </>
+    );
+  }
+
+  const error = one(params.error);
+  const message = error && (CLAIM_ERRORS as readonly string[]).includes(error) ? error : "We couldn't confirm a payment for this browser.";
   return (
     <>
-      <CardHeader>
-        <CardTitle>{result.title}</CardTitle>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <p className="text-sm text-muted-foreground">{result.message}</p>
-        <Link href={success ? "/plan?pro=1" : "/plan"} className="text-sm font-medium underline underline-offset-4">
-          Back to my plan
-        </Link>
-      </CardContent>
+      <h1 className="text-xl font-bold text-ink">Payment not confirmed</h1>
+      <p className="mt-2 text-sm text-ink-2">{message}</p>
+      <p className="mt-2 text-xs text-ink-3">If you paid, open this page in the same browser you started checkout in.</p>
+      <Link href="/pricing" className={buttonClasses({ variant: "secondary", fullWidth: true, className: "mt-6" })}>
+        Back to pricing
+      </Link>
     </>
   );
 }

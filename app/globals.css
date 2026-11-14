@@ -3,9 +3,9 @@
 @import "shadcn/tailwind.css";
 
 /*
- * Penaltyproof design tokens. Light theme only.
- * Paper and ink carry the page; deep green is the single accent ("penalty-proof", safe);
- * amber marks anything due; red is reserved for past due.
+ * On the Spot design tokens. Light theme only.
+ * Paper and ink carry the page; deep green is the single accent;
+ * amber marks a warning; red is reserved for errors.
  */
 @theme {
   /* Surfaces */
@@ -76,7 +76,7 @@
 
 /*
  * shadcn/ui tokens (components/ui/button.tsx, card.tsx, used by the skeleton's checkout pages),
- * mapped onto the Penaltyproof palette so those pages match the rest of the site.
+ * mapped onto the On the Spot palette so those pages match the rest of the site.
  * `accent` is ours (deep green) and is deliberately not remapped.
  */
 @theme inline {
@@ -111,7 +111,6 @@
     background-color: var(--color-paper);
     color: var(--color-ink);
     font-family: var(--font-sans);
-    /* Every number lines up: money is always set in tabular figures. */
     font-variant-numeric: tabular-nums;
   }
 

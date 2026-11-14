@@ -1,5 +1,5 @@
 import { getOrCreateGuestId } from "@/lib/guest";
-import { isPro } from "@/lib/supabase";
+import { isProRequest } from "@/lib/pro";
 import { createCheckoutSession, DEFAULT_PLAN, getOrigin, isPlanId, type PlanId } from "@/lib/stripe";
 
 /** POST /api/checkout: form ({plan}) → 303 to Stripe; JSON ({plan}) → { url }. */
@@ -22,8 +22,9 @@ export async function POST(req: Request) {
   const origin = getOrigin(req);
   try {
     const guestId = await getOrCreateGuestId();
-    if (await isPro(guestId)) {
-      return isJson ? Response.json({ url: `${origin}/plan` }) : Response.redirect(`${origin}/plan`, 303);
+    // Already Pro in this browser: nothing to buy, go practice.
+    if (await isProRequest()) {
+      return isJson ? Response.json({ url: `${origin}/progress` }) : Response.redirect(`${origin}/progress`, 303);
     }
     const session = await createCheckoutSession({ plan: plan as PlanId, guestId, origin });
     if (!session.url) throw new Error("Stripe returned no checkout URL");

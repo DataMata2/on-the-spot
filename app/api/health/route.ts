@@ -1,12 +1,12 @@
 import { connection } from "next/server";
 import { getAnthropic, MODEL } from "@/lib/ai";
-import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { getStripe } from "@/lib/stripe";
 
 type Check = { ok: boolean; ms: number; error?: string };
 
-const TIMEOUT_MS = 8000;
-const SECRET_ENV = ["ANTHROPIC_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "SUPABASE_SERVICE_ROLE_KEY"];
+// The model can take ~8 s to answer even a 5-token ping; leave headroom.
+const TIMEOUT_MS = 20_000;
+const SECRET_ENV = ["ANTHROPIC_API_KEY", "STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET", "PRO_COOKIE_SECRET"];
 
 /** Strips secret values and key-like tokens from an error message. */
 function sanitize(message: string): string {
@@ -49,31 +49,16 @@ async function checkAnthropic() {
   });
 }
 
-async function checkSupabase() {
-  const db = getSupabaseAdmin();
-  if (!db) throw new Error("not configured");
-  const { data, error } = await db.from("health_checks").insert({}).select("id").single();
-  if (error) throw new Error(`insert: ${error.message}`);
-  const { data: row, error: readError } = await db.from("health_checks").select("id").eq("id", data.id).single();
-  if (readError || !row) throw new Error(`select: ${readError?.message ?? "row not found"}`);
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  await db.from("health_checks").delete().lt("at", cutoff);
-}
-
 async function checkStripe() {
   const balance = await getStripe().balance.retrieve();
   if (balance.livemode) throw new Error("Stripe is in live mode");
 }
 
-/** GET /api/health: checks Anthropic, Supabase and Stripe; 200 if all ok, else 503. */
+/** GET /api/health: checks Anthropic and Stripe (test mode); 200 if both ok, else 503. No database is used. */
 export async function GET() {
   await connection();
-  const [anthropic, supabase, stripe] = await Promise.all([
-    timed(checkAnthropic),
-    isSupabaseConfigured() ? timed(checkSupabase) : Promise.resolve<Check>({ ok: false, ms: 0, error: "not configured" }),
-    timed(checkStripe),
-  ]);
-  const checks = { anthropic, supabase, stripe };
+  const [anthropic, stripe] = await Promise.all([timed(checkAnthropic), timed(checkStripe)]);
+  const checks = { anthropic, stripe };
   const ok = Object.values(checks).every((c) => c.ok);
   return Response.json({ ok, checks }, { status: ok ? 200 : 503, headers: { "Cache-Control": "no-store" } });
 }

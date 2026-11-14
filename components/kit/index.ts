@@ -1,4 +1,4 @@
-// Penaltyproof UI kit. Tokens live in app/globals.css (@theme).
+// On the Spot UI kit. Tokens live in app/globals.css (@theme).
 
 export { Badge, type BadgeProps, type BadgeStatus } from "./Badge";
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from "./Button";

@@ -1,8 +1,11 @@
 import type Stripe from "stripe";
-import { setPro } from "@/lib/supabase";
-import { getStripe, isSessionPaid, sessionCustomerId } from "@/lib/stripe";
+import { getStripe, isSessionPaid } from "@/lib/stripe";
 
-/** POST /api/stripe/webhook: verifies the signature and marks guests Pro on checkout completion. */
+/**
+ * POST /api/stripe/webhook: verifies the signature and acknowledges the event. Pro is granted in the
+ * browser that paid (GET /api/pro/claim sets the signed cookie); with no database there is nothing to
+ * record here, so completed checkouts are only logged. 503 when STRIPE_WEBHOOK_SECRET is unset.
+ */
 export async function POST(req: Request) {
   const secret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secret) return Response.json({ error: "Webhook not configured" }, { status: 503 });
@@ -20,15 +23,9 @@ export async function POST(req: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object;
-    const guestId = session.client_reference_id ?? session.metadata?.guestId;
-    if (guestId && isSessionPaid(session)) {
-      try {
-        await setPro(guestId, { stripeSessionId: session.id, stripeCustomerId: sessionCustomerId(session) });
-      } catch (err) {
-        console.error("webhook setPro failed:", err instanceof Error ? err.message : err);
-        return Response.json({ error: "Could not record payment" }, { status: 500 });
-      }
-    }
+    console.info(
+      `stripe webhook: checkout ${session.id} completed, paid=${isSessionPaid(session)}, plan=${session.metadata?.plan ?? "?"}`,
+    );
   }
   return Response.json({ received: true });
 }

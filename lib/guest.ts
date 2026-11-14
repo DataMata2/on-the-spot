@@ -1,6 +1,5 @@
 import "server-only";
 import { cookies } from "next/headers";
-import { ensureGuest } from "@/lib/supabase";
 
 /** Name of the httpOnly cookie holding the guest id. */
 export const GUEST_COOKIE = "guest_id";
@@ -14,7 +13,7 @@ export async function getGuestId(): Promise<string | null> {
   return value && UUID_RE.test(value) ? value : null;
 }
 
-/** Returns the guest id, creating cookie + DB row if needed. Route handlers / server actions only. */
+/** Returns the guest id, setting the cookie if needed. Route handlers / server actions only. */
 export async function getOrCreateGuestId(): Promise<string> {
   const existing = await getGuestId();
   const id = existing ?? crypto.randomUUID();
@@ -27,6 +26,5 @@ export async function getOrCreateGuestId(): Promise<string> {
       maxAge: ONE_YEAR_SECONDS,
     });
   }
-  await ensureGuest(id);
   return id;
 }
