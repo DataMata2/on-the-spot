@@ -149,19 +149,26 @@ export function findSpan(text: string, quote: string): string | null {
 const DAY_RE = /\b(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|today|tonight)\b/gi;
 /**
  * A whole number token: integers, thousands ("3,000"), decimals ("3.5"), fractions ("1/2"), clock times ("10:30"),
- * an optional leading "$" and trailing "%". A unit glued on ("5pm", "10k", "2x") is not part of the token, so
- * "5pm" and "5 pm" both carry the number "5".
+ * an optional leading "$" and trailing "%", and a glued "k"/"m" for thousands/millions ("$6k", "1.5m"). Any other
+ * unit glued on ("5pm", "2x") is not part of the token, so "5pm" and "5 pm" both carry the number "5".
  */
-const NUM_RE = /(?<![\d.,/:])\$?\d+(?:[.,/:]\d+)*(?:\s?(?:%|percent\b))?/gi;
+const NUM_RE = /(?<![\d.,/:])\$?\d+(?:[.,/:]\d+)*(?:[km]\b|\s?(?:%|percent\b))?/gi;
 
-/** The canonical form of a number token: no "$", no thousands commas, "percent" → "%". */
+/**
+ * The canonical form of a number token: no "$", no thousands commas, "percent" → "%", and "k"/"m" multiplied
+ * out, so "$6k", "6k", "6,000" and "6000" are one number (B-R14-03). A bare "6" stays "6": it is not "6k".
+ */
 function canonNumber(m: string): string {
-  return m
+  const c = m
     .toLowerCase()
     .replace(/^\$/, "")
     .replace(/\s?percent$/, "%")
     .replace(/\s+/g, "")
     .replace(/,(?=\d{3}(?:\D|$))/g, "");
+  const suffixed = /^(\d+(?:\.\d+)?)([km])$/.exec(c);
+  if (!suffixed) return c;
+  const n = Number(suffixed[1]) * (suffixed[2] === "k" ? 1e3 : 1e6);
+  return Number.isInteger(n) ? String(n) : c;
 }
 
 /** The whole number tokens of a text, canonical. */

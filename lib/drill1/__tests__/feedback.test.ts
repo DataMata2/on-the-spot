@@ -68,7 +68,24 @@ describe("guardStrongerVersion", () => {
   it("checks the number of a number+unit pair", () => {
     expect(guardStrongerVersion("Ship by 5pm.", "ship by 5 pm today")).toBe("Ship by 5pm.");
     expect(guardStrongerVersion("Ship by 10:30.", "ship by 10 and test by 30")).toBe("Ship by [your number].");
-    expect(guardStrongerVersion("We need 10k rows.", "we need 1 or 0 rows")).toBe("We need [your number]k rows.");
+    // A glued "k" is part of the number now (B-R14-03): the whole "10k" becomes the placeholder.
+    expect(guardStrongerVersion("We need 10k rows.", "we need 1 or 0 rows")).toBe("We need [your number] rows.");
+  });
+  it("reads k and m as thousands and millions (B-R14-03)", () => {
+    const q3 = givenText({ context: "Agenda item 2. The finance partner turns to you:", text: "You want $6k for the device lab this quarter." });
+    const t = "We need the budget for the device lab.";
+    for (const known of ["we need $6k", "about 6k", "6,000 dollars", "6000 for devices", "$6K"]) {
+      expect(guardStrongerVersion("We need $6k for the lab.", known)).toBe("We need $6k for the lab.");
+      expect(guardStrongerVersion("We need 6,000 for the lab.", known)).toBe("We need 6,000 for the lab.");
+      expect(guardStrongerVersion("We need 6k for the lab.", t, known)).toBe("We need 6k for the lab.");
+    }
+    expect(guardStrongerVersion("We need $6k for the lab.", t, q3)).toBe("We need $6k for the lab.");
+    expect(guardStrongerVersion("We need $1.5m.", "we asked for 1,500,000")).toBe("We need $1.5m.");
+    // A different number, or the bare digit without its "k", is still new.
+    expect(guardStrongerVersion("We need $7k for the lab.", t, q3)).toBe("We need [your number] for the lab.");
+    expect(guardStrongerVersion("We need $6k for the lab.", "we need 6 devices")).toBe("We need [your number] for the lab.");
+    expect(guardStrongerVersion("We need 6 devices.", t, q3)).toBe("We need [your number] devices.");
+    expect(guardStrongerVersion("We need $5k, 12 devices.", t, "")).toBe("We need [your number], [your number] devices.");
   });
 });
 

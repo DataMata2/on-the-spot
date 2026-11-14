@@ -69,6 +69,9 @@ export type NumberParse = { kind: "value"; n: number } | { kind: "wrong_unit"; n
 /** Words that make two numbers before one unit two choices ("30 or 40 minutes", "maybe 20, maybe 30 minutes"). */
 const HEDGE_WORDS = new Set(["or", "maybe", "either", "perhaps", "possibly", "to"]);
 
+/** Hedges that put a second number right after a length: "30 minutes or 45", "30 minutes, maybe 45". */
+const AFTER_HEDGE = new Set(["or", "maybe", "perhaps", "possibly"]);
+
 /** Numbers and vague quantities in a token range. */
 function scanNumbers(tokens: string[], from: number, to: number): { nums: number[]; vague: boolean } {
   const nums: number[] = [];
@@ -145,7 +148,8 @@ export function readNumber(text: string, units: string[] = [], opts: NumberOptio
   const times = scanTimes(tokens);
   const clock = new Set<number>();
   for (const t of [...times.definite, ...times.bare, ...times.ranges]) for (let k = t.start; k < t.end; k++) clock.add(k);
-  const numbersNear = (from: number, to: number) => scanNumbers(tokens.map((w, k) => (clock.has(k) ? "" : w)), from, to);
+  const masked = tokens.map((w, k) => (clock.has(k) ? "" : w));
+  const numbersNear = (from: number, to: number) => scanNumbers(masked, from, to);
   const unitTokens = units.map((u) => normaliseText(u).split(" "));
   const otherTokens = (opts.otherUnits ?? []).map((u) => normaliseText(u).split(" "));
   const nums: number[] = [];
@@ -166,6 +170,16 @@ export function readNumber(text: string, units: string[] = [], opts: NumberOptio
         vague ||= near.vague;
         if (near.nums.length) perUnit.push(near.nums[near.nums.length - 1]);
         if (new Set(near.nums).size > 1 && tokens.slice(Math.max(0, i - 3), i).some((w) => HEDGE_WORDS.has(w))) hedged = true;
+        // A second bare number hedged on right after the length ("30 minutes, up to 45 if needed", "30 minutes
+        // or 45") is a soft second length: not clear which to book (B-R14-02).
+        const said = near.nums[near.nums.length - 1];
+        const j = i + ut.length;
+        const from = AFTER_HEDGE.has(tokens[j]) ? j + 1 : tokens[j] === "up" && tokens[j + 1] === "to" ? j + 2 : -1;
+        const second = from > 0 ? numberAt(masked, from) : null;
+        if (said !== undefined && second && second.n !== said && !NOT_TIME_NEXT.has(tokens[from + second.len] ?? "")) {
+          nums.push(second.n);
+          hedged = true;
+        }
       }
       continue;
     }
@@ -342,6 +356,29 @@ function rangeAt(tokens: string[], i: number): RangeHit | null {
   return { from: point(a, fromMin), to: point(b, toMin), span, start: i, end };
 }
 
+/** Verbs that move a meeting to a new time: "push it to 2", "moved to 2 on Wednesday" (B-R14-01). */
+const MOVE_VERBS = new Set([
+  "move", "moved", "moving", "push", "pushed", "pushing", "change", "changed", "shift", "shifted", "bump", "bumped",
+  "reschedule", "rescheduled",
+]);
+/** What may sit between the move verb and "to": "push it", "move the meeting back", "bump the call up". */
+const MOVE_OBJECTS = [["it"], ["that"], ["the", "meeting"], ["the", "call"], ["the", "kickoff"]];
+const MOVE_PARTICLES = new Set(["back", "forward", "up"]);
+
+/**
+ * Is the hour at token i the target of a move: "<move verb> [it|that|the meeting|the call|the kickoff]
+ * [back|forward|up] to <hour>"? A quote of only "to <hour>" (the extractor's span for that time) counts too.
+ */
+function movedTo(tokens: string[], i: number): boolean {
+  if (tokens[i - 1] !== "to") return false;
+  if (i === 1 && tokens.length === 1 + (hourAt(tokens, i)?.len ?? 1)) return true;
+  let k = i - 2;
+  if (k >= 0 && MOVE_PARTICLES.has(tokens[k])) k--;
+  const obj = MOVE_OBJECTS.find((o) => endsAt(tokens, k + 1, o));
+  if (obj) k -= obj.length;
+  return k >= 0 && MOVE_VERBS.has(tokens[k]);
+}
+
 /** Every time expression in the tokens, with the index of its first token. */
 function scanTimes(tokens: string[]): { definite: DefiniteHit[]; bare: BareHit[]; ranges: RangeHit[] } {
   const definite: DefiniteHit[] = [];
@@ -394,8 +431,9 @@ function scanTimes(tokens: string[]): { definite: DefiniteHit[]; bare: BareHit[]
     }
     if (hr.h < 1 || hr.h > 12) continue;
     const oclock = tokens[after] === "oclock";
-    // "at 2", and a bare hour right after a day ("Wednesday 2, 30 minutes"), are a clock time.
-    const prep = i > 0 && (TIME_PREPS.has(tokens[i - 1]) || tokens[i - 1] in DAY_WORDS);
+    // "at 2", a bare hour right after a day ("Wednesday 2, 30 minutes") and a move to an hour ("push it to 2",
+    // "moved to 2 on Wednesday") are a clock time.
+    const prep = i > 0 && (TIME_PREPS.has(tokens[i - 1]) || tokens[i - 1] in DAY_WORDS || movedTo(tokens, i));
     const whole = tokens.length === hr.len;
     const nextIsCount = NOT_TIME_NEXT.has(tokens[after] ?? "");
     if (hr.colon || oclock || whole || (prep && !nextIsCount)) {
