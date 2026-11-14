@@ -6,7 +6,7 @@ import { getGuestId, getOrCreateGuestId } from "@/lib/guest";
 import { takeAiBudget, takeDrillStart } from "@/lib/limits";
 import { isProRequest } from "@/lib/pro";
 import { characterReply, extract, offTopicReply } from "./ai";
-import { gradeConfirmation, publicScenario, revealFor, useHint } from "./engine";
+import { changeBeforeConfirm, gradeConfirmation, publicScenario, revealFor, useHint } from "./engine";
 import { getScenario, pickScenario } from "./scenarios";
 import { drill2Sessions, MAX_TURNS, MAX_UTTERANCE_CHARS, type Drill2Session } from "./sessions";
 import type { Grade } from "./types";
@@ -35,7 +35,8 @@ async function wrap(name: string, fn: () => Promise<Response>): Promise<Response
   } catch (err) {
     if (err instanceof GuardError) return guardResponse(err);
     if (err instanceof HttpError) return fail(err.status, err.message, err.code);
-    if (err instanceof Error && err.name === "AbortError") return fail(499, "Request aborted.");
+    // fetch aborts throw AbortError; the Anthropic SDK throws APIUserAbortError.
+    if (err instanceof Error && (err.name === "AbortError" || err.name === "APIUserAbortError")) return fail(499, "Request aborted.");
     console.error(`${name} failed:`, err instanceof Error ? err.message : err);
     return fail(500, "Something went wrong. Try again.");
   }
@@ -127,8 +128,9 @@ export function turnHandler() {
         if (session.state.turns >= MAX_TURNS) throw new HttpError(429, "That's plenty of questions. Confirm the task now.", "turn_limit");
         spendAi(request, session.guestId);
         const ex = await extract(session.scenario, utterance, "turn", request.signal);
+        // The new state is committed only once the reply is ready: an abort in between changes nothing, so a
+        // retry with the same requestId (its cache entry is dropped on failure) doesn't count the turn twice.
         const turn = revealFor(session.scenario, session.state, ex.turn);
-        session.state = turn.state;
 
         const suggestConfirm = ex.turn.intent === "confirmation";
         const factLines = turn.allowedLines.filter((l) => l !== turn.changeLine);
@@ -139,7 +141,7 @@ export function turnHandler() {
         } else if (factLines.length) {
           const budget = takeAiBudget(request, session.guestId);
           if (budget.ok) {
-            const c = await characterReply(session.scenario, session.state, utterance, factLines, request.signal);
+            const c = await characterReply(session.scenario, turn.state, utterance, factLines, request.signal);
             reply = c.text;
             character = c.source;
           } else {
@@ -147,10 +149,11 @@ export function turnHandler() {
             character = "verbatim";
           }
         } else {
-          reply = offTopicReply(session.state.turns);
+          reply = offTopicReply(turn.state.turns);
         }
         // The change is always said verbatim, so it can't be dropped or blurred.
         if (turn.changeLine) reply = `${reply} ${turn.changeLine}`;
+        session.state = turn.state;
         session.thread.push({ role: "user", text: utterance }, { role: "manager", text: reply });
         return {
           requestId,
@@ -185,6 +188,17 @@ export function hintHandler() {
     });
 }
 
+/**
+ * The confirm route's answer when a condition change was still pending: no grade yet; the manager announces the
+ * change and the user confirms again.
+ */
+export interface ConfirmChangeResponse {
+  grade: null;
+  reply: string;
+  changed: true;
+  progress: ReturnType<typeof progressOf>;
+}
+
 export interface ConfirmResponse {
   grade: Grade;
   utterance: string;
@@ -196,6 +210,8 @@ export interface ConfirmResponse {
 /**
  * POST /api/drill2/confirm `{ sessionId, utterance, requestId, input? }` → `ConfirmResponse`. One grade per
  * session: a second confirm returns the first grade (no trial and error against the answer key).
+ * When the scenario's condition change hasn't fired yet (a confirm before any turn), it fires here instead:
+ * `ConfirmChangeResponse` (grade null, the manager's change line), and the user confirms again.
  */
 export function confirmHandler() {
   return (request: Request) =>
@@ -205,6 +221,19 @@ export function confirmHandler() {
       const requestId = readRequestId(body);
       const utterance = readUtterance(body);
       const input = body.input === "typed" || body.input === "edited" ? body.input : "voice";
+      if (!session.grade && session.scenario.change && !session.state.changeFired) {
+        // Its own cache key, so the later real confirm still grades once under "confirm".
+        const changed = await drill2Sessions.once(session, `confirm-change:${requestId}`, async (): Promise<ConfirmChangeResponse> => {
+          const pending = changeBeforeConfirm(session.scenario, session.state);
+          const reply = pending?.reply ?? "Go ahead, say it back to me.";
+          if (pending) {
+            session.state = pending.state;
+            session.thread.push({ role: "user", text: utterance }, { role: "manager", text: reply });
+          }
+          return { grade: null, reply, changed: true, progress: progressOf(session) };
+        });
+        return json(changed);
+      }
       const result = await drill2Sessions.once(session, "confirm", async (): Promise<ConfirmResponse> => {
         spendAi(request, session.guestId);
         const ex = await extract(session.scenario, utterance, "confirm", request.signal);

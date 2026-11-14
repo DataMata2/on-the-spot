@@ -179,7 +179,7 @@ export function ClarifyFlow() {
     if (!utterance) return;
     const input = m === "typed" ? "typed" : text.trim() !== rawText.trim() ? "edited" : "voice";
     setPhase({ k: "grading" });
-    let r: Awaited<ReturnType<typeof post<{ grade: Grade; input: "voice" | "typed" | "edited" }>>>;
+    let r: Awaited<ReturnType<typeof post<{ grade: Grade | null; input: "voice" | "typed" | "edited"; reply?: string; progress?: Progress }>>>;
     try {
       r = await post("/api/drill2/confirm", { sessionId, utterance, requestId: newId(), input });
     } catch {
@@ -187,6 +187,17 @@ export function ClarifyFlow() {
       setEdited(text);
       setMode(m);
       setPhase({ k: "error", message: "We couldn't reach the server. Try again.", retry: "confirm" });
+      return;
+    }
+    if (r.status === 200 && r.data.grade === null && r.data.reply) {
+      // The manager changed a detail before grading: hear it, then confirm again.
+      const reply = r.data.reply;
+      setThread((t) => [...t, { id: newId(), role: "user", text: utterance }, { id: newId(), role: "manager", text: reply }]);
+      if (r.data.progress) setProgress(r.data.progress);
+      setNudge(`${scenario?.managerName ?? "Your manager"} just changed something. Confirm the task again with the latest details.`);
+      say(reply);
+      freshCapture();
+      setPhase({ k: "confirm" });
       return;
     }
     if (r.status !== 200 || !r.data.grade) {

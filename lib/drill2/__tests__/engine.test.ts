@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  changeBeforeConfirm,
   characterReplyIsSafe,
+  CONFIRM_AGAIN_LINE,
   createState,
   fallbackExtract,
   gradeConfirmation,
@@ -282,6 +284,22 @@ describe("change of condition (S3)", () => {
   });
   it("before the change fires, the original value stands", () => {
     expect(statusOf(S3, createState(S3), fields({ day: "Tuesday" })).day).toBe("correct");
+  });
+  it("a confirm before any turn fires the change first and asks to confirm again (no grade yet)", () => {
+    const pending = changeBeforeConfirm(S3, createState(S3));
+    expect(pending).not.toBeNull();
+    expect(pending!.reply).toBe(`${S3.change!.announceLine} ${CONFIRM_AGAIN_LINE}`);
+    expect(pending!.state.changeFired).toBe(true);
+    expect(pending!.state.turns).toBe(0);
+    // The second confirmation is graded against the new day: the old one is outdated.
+    const day = gradeConfirmation(S3, pending!.state, fields({ ...rest, day: "Tuesday" })).facts.find((f) => f.key === "day")!;
+    expect(day.status).toBe("contradicted");
+    expect(day.reason).toBe("outdated");
+    expect(statusOf(S3, pending!.state, fields({ ...rest, day: "Wednesday" })).day).toBe("correct");
+    // Once fired (or with no change in the scenario), nothing is pending.
+    expect(changeBeforeConfirm(S3, pending!.state)).toBeNull();
+    expect(changeBeforeConfirm(S3, revealFor(S3, createState(S3), q(["people"])).state)).toBeNull();
+    expect(changeBeforeConfirm(S1, createState(S1))).toBeNull();
   });
   it("attendees are an order-free set", () => {
     const st = askAll(S3);

@@ -61,6 +61,20 @@ export function fireChangeIfDue(s: Scenario, state: DrillState, force = false): 
   return { state: { ...state, changeFired: true, revealed }, line: ch.announceLine };
 }
 
+/** Said after the change when the user tried to confirm before it fired: they must confirm again. */
+export const CONFIRM_AGAIN_LINE = "Can you say it back to me again with that?";
+
+/**
+ * Before a confirmation is graded, a condition change that hasn't fired yet fires now (the user confirmed
+ * before any turn). Returns the manager's reply (the change, then a request to confirm again) and the new
+ * state, or null when there is nothing pending and the confirmation can be graded. Not counted as a turn.
+ */
+export function changeBeforeConfirm(s: Scenario, state: DrillState): { state: DrillState; reply: string } | null {
+  if (!s.change || state.changeFired) return null;
+  const fired = fireChangeIfDue(s, state, true);
+  return { state: fired.state, reply: `${fired.line} ${CONFIRM_AGAIN_LINE}` };
+}
+
 /**
  * One user turn. A question reveals ONLY the facts its topics unlock; anything else reveals nothing. Topic keys
  * the scenario doesn't know are ignored. The extracted turn cannot change the answer key: there is no input for it.
