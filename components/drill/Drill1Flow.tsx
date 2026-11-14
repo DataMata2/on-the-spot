@@ -63,6 +63,8 @@ function saveMode(m: AnswerMode) {
 export interface DrillQueueItem {
   question: ColdQuestion;
   attemptId: string;
+  /** Lets the server voice this AI-written question (POST /api/speech/tts). */
+  ttsToken?: string;
 }
 
 export interface Drill1FlowProps {
@@ -78,6 +80,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   const [phase, setPhase] = useState<Phase>({ k: "intro" });
   const [question, setQuestion] = useState<ColdQuestion | null>(null);
   const [attemptId, setAttemptId] = useState<string | null>(null);
+  const [ttsToken, setTtsToken] = useState<string | undefined>(undefined);
   const [usage, setUsage] = useState<Usage | null>(null);
   const [pro, setPro] = useState(false);
   const [raw, setRaw] = useState("");
@@ -106,6 +109,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
       setPreferTyping(typing);
       let q: ColdQuestion;
       let issuedAttempt: string;
+      let issuedToken: string | undefined;
       if (queue) {
         const item = queue[queueIdx.current];
         if (!item) {
@@ -115,6 +119,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
         queueIdx.current += 1;
         q = item.question;
         issuedAttempt = item.attemptId;
+        issuedToken = item.ttsToken;
       } else {
         setPhase({ k: "starting" });
         let res: Response;
@@ -147,6 +152,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
       seenRef.current = [...seenRef.current, q.id];
       setQuestion(q);
       setAttemptId(issuedAttempt);
+      setTtsToken(issuedToken);
       setRaw("");
       setEdited("");
       setFeedback(null);
@@ -155,7 +161,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
       setCarriedHelp(carry);
       stt.reset();
       setPhase({ k: "question" });
-      if (tts.supported) await tts.speak(q.text);
+      if (tts.supported) await tts.speak(q.text, { token: issuedToken });
       if (token === tokenRef.current) setPhase((p) => (p.k === "question" ? { k: "think" } : p));
     },
     [tts, stt, queue],
@@ -377,10 +383,10 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
         <p className="mt-2 text-xl leading-snug font-semibold text-ink sm:text-2xl">“{question.text}”</p>
         {tts.supported && (
           <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <button type="button" className="font-semibold text-accent hover:underline" onClick={() => void tts.speak(question.text)}>
+            <button type="button" className="font-semibold text-accent hover:underline" onClick={() => void tts.speak(question.text, { token: ttsToken })}>
               Replay
             </button>
-            <button type="button" className="font-semibold text-accent hover:underline" onClick={() => void tts.speak(question.text, { rate: SLOW_RATE })}>
+            <button type="button" className="font-semibold text-accent hover:underline" onClick={() => void tts.speak(question.text, { rate: SLOW_RATE, token: ttsToken })}>
               Slower
             </button>
             {phase.k === "question" && (

@@ -4,6 +4,7 @@ import { attempts } from "@/lib/drill1/attempts";
 import { getOrCreateGuestId } from "@/lib/guest";
 import { takeAiBudget } from "@/lib/limits";
 import { isProRequest } from "@/lib/pro";
+import { ttsToken } from "@/lib/speech/server";
 import {
   cleanAgenda,
   MAX_AGENDA_CHARS,
@@ -20,7 +21,7 @@ const FALLBACK = { betas: ["server-side-fallback-2026-07-01"], fallbacks: "defau
 const errorJson = (status: number, error: string, code?: string) => Response.json({ error, code }, { status, headers: NO_STORE });
 
 /**
- * POST /api/rehearse/questions `{ agenda }` → `{ items: [{ question, attemptId }] }` (Pro only; free → 402
+ * POST /api/rehearse/questions `{ agenda }` → `{ items: [{ question, attemptId, ttsToken }] }` (Pro only; free → 402
  * `pro_required`). Claude writes the cold questions for this meeting; each one gets a server-issued drill 1 attempt
  * that stores the question, so POST /api/drill1/feedback grades it without trusting question text from the client.
  * Rehearse questions don't count against the free daily drill limit (Pro is unlimited anyway).
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
 
     if (questions.length < REHEARSE_MIN) return errorJson(502, "We couldn't write good questions from that. Add a little more detail and try again.", "ai_failed");
 
-    const items = questions.map((question) => ({ question, attemptId: attempts.create(guestId, question).id }));
+    const items = questions.map((question) => ({ question, attemptId: attempts.create(guestId, question).id, ttsToken: ttsToken(question.text) }));
     return Response.json({ items }, { headers: NO_STORE });
   } catch (err) {
     if (err instanceof GuardError) return guardResponse(err);

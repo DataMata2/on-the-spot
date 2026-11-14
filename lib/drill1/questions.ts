@@ -64,6 +64,23 @@ export function isQuestionType(value: unknown): value is QuestionType {
 }
 
 /**
+ * The first questions a fresh guest gets, in this order (one of each type, then one more status): a fixed order
+ * so the jury's run is predictable and its audio can be pre-generated (POST /api/speech/prewarm).
+ */
+export const JURY_ORDER: readonly string[] = ["st-onboarding", "de-scope", "es-feature", "bl-general", "st-bugfix"];
+
+/**
+ * The next question in JURY_ORDER this guest hasn't seen, while they have seen fewer than JURY_ORDER.length
+ * questions; null afterwards (then the start route picks at random).
+ */
+export function juryQuestion(excludeIds: readonly string[]): ColdQuestion | null {
+  if (excludeIds.length >= JURY_ORDER.length) return null;
+  const seen = new Set(excludeIds);
+  const id = JURY_ORDER.find((x) => !seen.has(x));
+  return id ? getQuestion(id) : null;
+}
+
+/**
  * Pick a question of `type` (any type when omitted), avoiding `excludeIds` (the ones already seen).
  * A retry is always a different question of the same type: when every question of the type is excluded, the
  * least recent one other than the last seen is reused (never the same as the last). `rand` is injectable for tests.

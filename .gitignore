@@ -43,3 +43,6 @@ next-env.d.ts
 
 # local deploy notes
 DEPLOY.md
+
+# TTS audio cache + speech budget (local runs)
+/.cache/

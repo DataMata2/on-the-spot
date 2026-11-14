@@ -12,7 +12,14 @@ services:
     ports:
       - "127.0.0.1:${APP_PORT:-3200}:3000"
     networks: [default, proxy]
+    # TTS audio cache + the ElevenLabs daily budget file: survive redeploys.
+    volumes:
+      - speech-cache:/app/.cache
     restart: unless-stopped
+
+volumes:
+  speech-cache:
+    name: on-the-spot-speech-cache
 
 networks:
   proxy:

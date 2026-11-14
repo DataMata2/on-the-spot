@@ -5,8 +5,9 @@ import { GuardError, guardResponse, readJsonBody } from "@/lib/ai-guard";
 import { getGuestId, getOrCreateGuestId } from "@/lib/guest";
 import { takeAiBudget, takeDrillStart } from "@/lib/limits";
 import { isProRequest } from "@/lib/pro";
+import { ttsToken } from "@/lib/speech/server";
 import { characterReply, extract, offTopicReply } from "./ai";
-import { changeBeforeConfirm, gradeConfirmation, publicScenario, revealFor, useHint } from "./engine";
+import { changeBeforeConfirm, gradeConfirmation, publicScenario, revealFor, SUGGEST_CONFIRM_REPLY, useHint } from "./engine";
 import { getScenario, pickScenario } from "./scenarios";
 import { drill2Sessions, MAX_TURNS, MAX_UTTERANCE_CHARS, type Drill2Session } from "./sessions";
 import type { Grade } from "./types";
@@ -102,6 +103,8 @@ export function startHandler() {
 export interface TurnResponse {
   requestId: string;
   reply: string;
+  /** Lets the client ask POST /api/speech/tts to speak `reply`. */
+  replyToken: string;
   intent: "question" | "confirmation" | "other";
   newlyFound: number;
   offTopic: boolean;
@@ -137,7 +140,7 @@ export function turnHandler() {
         let reply: string;
         let character: TurnResponse["source"]["character"] = "none";
         if (suggestConfirm) {
-          reply = "Sounds like you've got it. Tap “Confirm the task” and say it all back to me.";
+          reply = SUGGEST_CONFIRM_REPLY;
         } else if (factLines.length) {
           const budget = takeAiBudget(request, session.guestId);
           if (budget.ok) {
@@ -158,6 +161,7 @@ export function turnHandler() {
         return {
           requestId,
           reply,
+          replyToken: ttsToken(reply),
           intent: ex.turn.intent,
           newlyFound: turn.newlyRevealed.length,
           offTopic: turn.offTopic,
@@ -195,6 +199,7 @@ export function hintHandler() {
 export interface ConfirmChangeResponse {
   grade: null;
   reply: string;
+  replyToken: string;
   changed: true;
   progress: ReturnType<typeof progressOf>;
 }
@@ -230,7 +235,7 @@ export function confirmHandler() {
             session.state = pending.state;
             session.thread.push({ role: "user", text: utterance }, { role: "manager", text: reply });
           }
-          return { grade: null, reply, changed: true, progress: progressOf(session) };
+          return { grade: null, reply, replyToken: ttsToken(reply), changed: true, progress: progressOf(session) };
         });
         return json(changed);
       }

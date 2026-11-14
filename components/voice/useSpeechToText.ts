@@ -1,5 +1,6 @@
 "use client";
-// Speech-to-text behind a small interface, so a server-side engine can replace the browser one later.
+// Speech-to-text behind a small interface. This file is the browser engine; useHybridSpeechToText.ts adds the
+// server engine (ElevenLabs) on top of it and is what `useSpeechToText` from "@/components/voice" returns.
 // Browser engine: webkitSpeechRecognition (Chrome, Edge, Safari), en-US, interim results. Chrome ends a
 // session on its own after silence; while the user is still "talking" (active) we restart it and keep what was
 // already recognized. A hard maximum duration stops it regardless. Audio never leaves the browser's engine
@@ -20,6 +21,8 @@ export interface SpeechToText {
   /** Not-yet-final text being recognized right now. */
   interim: string;
   error: SttError | null;
+  /** The recording has stopped and the server is turning it into text (server engine only). */
+  transcribing: boolean;
   /** Milliseconds since start() while listening. */
   elapsedMs: number;
   maxMs: number;
@@ -63,7 +66,14 @@ function getCtor(): RecognitionCtor | null {
 
 const join = (a: string, b: string) => [a.trim(), b.trim()].filter(Boolean).join(" ");
 
-export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { maxMs?: number; lang?: string } = {}): SpeechToText {
+export interface BrowserSttOptions {
+  maxMs?: number;
+  lang?: string;
+  /** Called (from the engine's events) every time a recording ends, with how it ended. */
+  onEnd?: (end: RecordingEnd) => void;
+}
+
+export function useBrowserSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US", onEnd }: BrowserSttOptions = {}): SpeechToText {
   const supported = useClientValue(() => getCtor() !== null, false);
   const [listening, setListening] = useState(false);
   const [transcript, setTranscript] = useState("");
@@ -86,6 +96,10 @@ export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { ma
   const launchRef = useRef<() => boolean>(() => false); // for the restart inside onend
   const sessionRef = useRef(0);
   const endReasonRef = useRef<EndReason | null>(null); // why the current recording is ending
+  const onEndRef = useRef(onEnd);
+  useEffect(() => {
+    onEndRef.current = onEnd;
+  }, [onEnd]);
 
   const clearTimers = () => {
     if (maxTimerRef.current) clearTimeout(maxTimerRef.current);
@@ -106,8 +120,10 @@ export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { ma
     setTranscript(full);
     setInterim("");
     setListening(false);
-    setEnded({ session: sessionRef.current, reason: endReasonRef.current ?? "auto", text: full });
+    const end: RecordingEnd = { session: sessionRef.current, reason: endReasonRef.current ?? "auto", text: full };
+    setEnded(end);
     endReasonRef.current = null;
+    onEndRef.current?.(end);
     const waiters = waitersRef.current;
     waitersRef.current = [];
     waiters.forEach((w) => w(full));
@@ -276,5 +292,5 @@ export function useSpeechToText({ maxMs = DEFAULT_MAX_MS, lang = "en-US" }: { ma
     [],
   );
 
-  return { supported, listening, transcript, interim, error, elapsedMs, maxMs, session, ended, start, stop, reset };
+  return { supported, listening, transcribing: false, transcript, interim, error, elapsedMs, maxMs, session, ended, start, stop, reset };
 }

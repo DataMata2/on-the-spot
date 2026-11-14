@@ -1,6 +1,7 @@
 "use client";
-// One answer, spoken or typed. Voice when the browser supports it and the mic is allowed; "Type instead" is
-// always offered, and becomes the only option when speech recognition is missing (Firefox) or denied.
+// One answer, spoken or typed. Voice when the browser (or the server, from a recording) can turn speech into text
+// and the mic is allowed; "Type instead" is always offered, and becomes the only option when neither can (Firefox
+// without ElevenLabs) or the mic is denied.
 // A recording that ends on its own (the 45 s cap, the engine giving up, an error) is handed on as if the user
 // had tapped stop, so the words are not lost when the next tap starts a new recording.
 
@@ -54,7 +55,7 @@ export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, max
 
   const autoAction = autoStopAction(stt.ended, { mountedAfter, handled: null });
   const autoNotice = autoAction !== "ignore" && !stt.listening ? autoStopNotice(stt.ended, stt.maxMs) : null;
-  const capturePending = autoAction === "capture" && !stt.listening && delivered !== stt.ended?.session;
+  const capturePending = (autoAction === "capture" && !stt.listening && delivered !== stt.ended?.session) || stt.transcribing;
 
   useEffect(() => {
     const end = stt.ended;
@@ -74,9 +75,9 @@ export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, max
 
   const switchMode = (toTyping: boolean) => {
     if (stt.ended) handledRef.current = stt.ended.session; // switching mode drops a pending auto-capture
-    if (stt.listening) {
+    if (stt.listening || stt.transcribing) {
       handledRef.current = stt.session;
-      void stt.stop();
+      if (stt.listening) void stt.stop();
     }
     setTyping(toTyping);
     onModeChange?.(toTyping ? "typed" : "voice");
@@ -150,7 +151,12 @@ export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, max
             onStop={() => void handleStop()}
           />
           <div className="min-h-16 w-full rounded-md border border-dashed border-line-strong bg-surface/60 p-3 text-base text-ink" aria-live="polite">
-            {live ? (
+            {stt.transcribing ? (
+              <span className="text-ink-3">
+                {live ? `${live} ` : ""}
+                <span role="status">Transcribing…</span>
+              </span>
+            ) : live ? (
               <>
                 {stt.transcript} <span className="text-ink-3">{stt.interim}</span>
               </>

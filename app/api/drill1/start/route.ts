@@ -1,5 +1,5 @@
 import { attempts } from "@/lib/drill1/attempts";
-import { isQuestionType, pickQuestion } from "@/lib/drill1/questions";
+import { isQuestionType, juryQuestion, pickQuestion } from "@/lib/drill1/questions";
 import { GuardError, guardResponse, readJsonBody } from "@/lib/ai-guard";
 import { getOrCreateGuestId } from "@/lib/guest";
 import { drillUsage, takeDrillStart } from "@/lib/limits";
@@ -27,7 +27,9 @@ export async function POST(request: Request) {
       return Response.json({ error: limit.error, code: limit.code, usage: drillUsage(guestId, pro), pro }, { status: limit.status, headers: NO_STORE });
     }
 
-    const question = pickQuestion(type, excludeIds);
+    // A fresh guest's first questions follow the fixed jury order (their audio is pre-generated); a same-type retry
+    // and later questions are random.
+    const question = (type ? null : juryQuestion(excludeIds)) ?? pickQuestion(type, excludeIds);
     const attempt = attempts.create(guestId, question.id);
     return Response.json({ question, attemptId: attempt.id, usage: drillUsage(guestId, pro), pro }, { headers: NO_STORE });
   } catch (err) {

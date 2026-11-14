@@ -38,3 +38,17 @@ describe("dailyType", () => {
     expect(dailyType("2026-11-18")).toBe(days[0]);
   });
 });
+
+describe("juryQuestion", () => {
+  it("gives a fresh guest the fixed jury order, then hands over to the random pick", async () => {
+    const { JURY_ORDER, juryQuestion } = await import("../questions");
+    const seen: string[] = [];
+    for (const id of JURY_ORDER) {
+      const q = juryQuestion(seen);
+      expect(q?.id).toBe(id);
+      seen.push(id);
+    }
+    expect(juryQuestion(seen)).toBeNull();
+    for (const id of JURY_ORDER) expect(getQuestion(id)).not.toBeNull();
+  });
+});

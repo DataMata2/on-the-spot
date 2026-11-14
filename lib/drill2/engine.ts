@@ -61,6 +61,9 @@ export function fireChangeIfDue(s: Scenario, state: DrillState, force = false): 
   return { state: { ...state, changeFired: true, revealed }, line: ch.announceLine };
 }
 
+/** The manager's reply when the user's turn sounds like a confirmation. */
+export const SUGGEST_CONFIRM_REPLY = "Sounds like you've got it. Tap “Confirm the task” and say it all back to me.";
+
 /** Said after the change when the user tried to confirm before it fired: they must confirm again. */
 export const CONFIRM_AGAIN_LINE = "Can you say it back to me again with that?";
 

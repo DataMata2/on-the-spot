@@ -25,6 +25,8 @@ RUN addgroup -S nodejs -g 1001 && adduser -S nextjs -u 1001 -G nodejs
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Mount point of the speech-cache volume (TTS audio + budget); a new named volume copies this ownership.
+RUN mkdir -p /app/.cache/tts && chown -R nextjs:nodejs /app/.cache
 USER nextjs
 EXPOSE 3000
 CMD ["node", "server.js"]

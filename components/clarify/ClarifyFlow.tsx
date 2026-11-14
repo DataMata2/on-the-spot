@@ -69,8 +69,8 @@ export function ClarifyFlow() {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }, [thread.length]);
 
-  const say = useCallback((text: string) => {
-    if (tts.supported) void tts.speak(text);
+  const say = useCallback((text: string, token?: string) => {
+    if (tts.supported) void tts.speak(text, { token });
   }, [tts]);
 
   const freshCapture = () => {
@@ -128,7 +128,7 @@ export function ClarifyFlow() {
     const requestId = pendingId.current ?? newId();
     pendingId.current = requestId;
     setPhase({ k: "waiting" });
-    let r: Awaited<ReturnType<typeof post<{ reply: string; progress: Progress; suggestConfirm: boolean; offTopic: boolean; changed: boolean }>>>;
+    let r: Awaited<ReturnType<typeof post<{ reply: string; replyToken?: string; progress: Progress; suggestConfirm: boolean; offTopic: boolean; changed: boolean }>>>;
     try {
       r = await post("/api/drill2/turn", { sessionId, utterance, requestId });
     } catch {
@@ -156,7 +156,7 @@ export function ClarifyFlow() {
     setThread((t) => [...t, { id: newId(), role: "user", text: utterance }, { id: newId(), role: "manager", text: r.data.reply }]);
     setProgress(r.data.progress);
     setNudge(r.data.suggestConfirm ? "That sounded like a confirmation. Tap “Confirm the task” to say it back in full." : null);
-    say(r.data.reply);
+    say(r.data.reply, r.data.replyToken);
     freshCapture();
     setPhase({ k: "ask" });
   };
@@ -179,7 +179,7 @@ export function ClarifyFlow() {
     if (!utterance) return;
     const input = m === "typed" ? "typed" : text.trim() !== rawText.trim() ? "edited" : "voice";
     setPhase({ k: "grading" });
-    let r: Awaited<ReturnType<typeof post<{ grade: Grade | null; input: "voice" | "typed" | "edited"; reply?: string; progress?: Progress }>>>;
+    let r: Awaited<ReturnType<typeof post<{ grade: Grade | null; input: "voice" | "typed" | "edited"; reply?: string; replyToken?: string; progress?: Progress }>>>;
     try {
       r = await post("/api/drill2/confirm", { sessionId, utterance, requestId: newId(), input });
     } catch {
@@ -195,7 +195,7 @@ export function ClarifyFlow() {
       setThread((t) => [...t, { id: newId(), role: "user", text: utterance }, { id: newId(), role: "manager", text: reply }]);
       if (r.data.progress) setProgress(r.data.progress);
       setNudge(`${scenario?.managerName ?? "Your manager"} just changed something. Confirm the task again with the latest details.`);
-      say(reply);
+      say(reply, r.data.replyToken);
       freshCapture();
       setPhase({ k: "confirm" });
       return;
