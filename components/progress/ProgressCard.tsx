@@ -5,6 +5,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { Blob, Button } from "@/components/kit";
 import { Paywall } from "@/components/paywall";
 import { localDay, TYPE_LABELS, TYPE_HINTS } from "@/lib/drill1/questions";
 import { loadResults, PROGRESS_EVENT, STORAGE_KEY, summarize } from "@/lib/progress/store";
@@ -57,7 +58,7 @@ export function ProgressCard() {
   const summary = useMemo(() => (raw === null || today === null ? null : summarize(loadResults(), today)), [raw, today]);
 
   if (!summary) {
-    return <div className="h-96 animate-pulse rounded-lg bg-sunken" aria-label="Loading your progress" />;
+    return <div className="h-96 rounded-card bg-field-tint motion-safe:animate-pulse" aria-label="Loading your progress" />;
   }
 
   const pro = usage?.pro ?? false;
@@ -65,95 +66,127 @@ export function ProgressCard() {
   const drill2Used = usage?.usage.drill2FreeUsed ?? summary.drill2Tried;
 
   return (
-    <div className="flex flex-col gap-6">
-      <article className="flex flex-col gap-6 rounded-lg border border-line bg-surface p-5 shadow-raised sm:p-7" aria-labelledby="progress-title">
-        <header className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold tracking-wide text-accent uppercase">Your progress</p>
-            <h1 id="progress-title" className="text-2xl font-bold tracking-tight text-ink">
-              {summary.today.total === 0 ? "No drills yet today" : `${summary.today.total} drill${summary.today.total === 1 ? "" : "s"} today`}
-            </h1>
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start lg:gap-x-16 lg:gap-y-6">
+      <article className="flex flex-col gap-10 lg:row-span-3" aria-labelledby="progress-title">
+        <header className="flex flex-col gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <p className="type-label text-field-fg">Your progress</p>
+            <Blob state={summary.today.total === 0 ? "idle" : "proud"} size={56} bob />
           </div>
-          <div className="text-right">
-            <div className="text-3xl font-bold tabular-nums text-ink">{summary.streak}</div>
-            <div className="text-xs text-ink-3">day streak</div>
-          </div>
+          <h1 id="progress-title" className="type-display text-field-fg">
+            {summary.today.total === 0 ? (
+              <span className="block max-w-[11ch] text-[clamp(48px,14vw,96px)] leading-[0.98]">No drills yet today</span>
+            ) : (
+              <span className="flex flex-wrap items-end gap-x-4 gap-y-2">
+                <span className="text-[clamp(110px,36vw,200px)] leading-[0.85] tabular-nums">{summary.today.total}</span>
+                <span className="mb-[0.12em] text-[clamp(36px,10vw,56px)] leading-[1.02]">
+                  {` drill${summary.today.total === 1 ? "" : "s"} today`}
+                </span>
+              </span>
+            )}
+          </h1>
         </header>
 
-        <dl className="grid grid-cols-3 gap-3">
+        <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
           {[
             ["Independent", summary.today.independent, "today, no hint or model answer"],
             ["With help", summary.today.withHelp, "today, after a hint or model answer"],
             ["Answered first", summary.today.answerFirst, "today, first sentence answered"],
-          ].map(([k, v, d]) => (
-            <div key={String(k)} className="rounded-md border border-line p-3">
-              <dt className="text-xs font-semibold text-ink-2">{k}</dt>
-              <dd className="text-2xl font-semibold tabular-nums text-ink">{v}</dd>
-              <dd className="mt-0.5 text-[0.6875rem] leading-4 text-ink-3">{d}</dd>
+          ].map(([k, v, d], i) => (
+            <div
+              key={String(k)}
+              data-field={i === 0 ? "ink" : i === 1 ? "paper" : "lemon"}
+              className={
+                "flex flex-col rounded-chip p-4 sm:p-5 " +
+                (i === 0 ? "-rotate-2" : i === 1 ? "rotate-2" : "col-span-2 -rotate-1 shadow-sticker-sm sm:col-span-1")
+              }
+            >
+              <dt className="order-2 mt-2 text-[0.9375rem] leading-tight font-semibold">{k}</dt>
+              <dd className="type-display order-1 text-[48px] leading-none tabular-nums">{v}</dd>
+              <dd className="order-3 mt-1 text-xs leading-4 text-field-muted">{d}</dd>
             </div>
           ))}
         </dl>
 
-        <section aria-label="Last 7 days">
-          <h2 className="mb-2 text-xs font-semibold tracking-wide text-ink-3 uppercase">Last 7 days</h2>
-          <ol className="grid grid-cols-7 gap-2">
+        <section aria-label="Last 7 days" className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <p className="flex items-baseline gap-2.5 text-field-fg">
+              <span className="type-display text-[44px] leading-none tabular-nums">{summary.streak}</span>
+              <span className="text-base font-semibold">day streak</span>
+            </p>
+            <h2 className="type-label text-field-fg">Last 7 days</h2>
+          </div>
+          <ol className="grid max-w-[440px] grid-cols-7 gap-1 sm:gap-2">
             {summary.week.map((d) => {
               const wd = WEEKDAY[new Date(`${d.day}T12:00:00`).getDay()];
               return (
-                <li key={d.day} className="flex flex-col items-center gap-1">
+                <li key={d.day} className="flex flex-col items-center gap-1.5">
                   <span
                     className={
-                      "grid size-9 place-items-center rounded-full text-xs font-semibold tabular-nums " +
-                      (d.count > 0 ? "bg-accent text-white" : "border border-line-strong text-ink-3") +
-                      (d.isToday ? " ring-2 ring-accent-mid ring-offset-2 ring-offset-surface" : "")
+                      "grid size-8 place-items-center rounded-full text-xs font-semibold tabular-nums min-[360px]:size-10 " +
+                      (d.isToday
+                        ? d.count > 0
+                          ? "bg-lemon text-ink shadow-[0_0_0_3px_var(--color-ink)]"
+                          : "shadow-[0_0_0_3px_var(--color-ink)]"
+                        : d.count > 0
+                          ? "bg-ink text-paper"
+                          : "shadow-[inset_0_0_0_2px_rgb(16_14_23/0.35)]")
                     }
                     aria-label={`${d.day}: ${d.count} drill${d.count === 1 ? "" : "s"}`}
                   >
                     {d.count > 0 ? d.count : ""}
                   </span>
-                  <span className={"text-xs " + (d.isToday ? "font-bold text-ink" : "text-ink-3")}>{d.isToday ? "Today" : wd}</span>
+                  <span className={"font-mono text-[11px] text-field-fg " + (d.isToday ? "font-bold" : "")}>{d.isToday ? "Today" : wd}</span>
                 </li>
               );
             })}
           </ol>
         </section>
 
-        <section className="rounded-md bg-sunken p-4">
-          <h2 className="text-xs font-semibold tracking-wide text-ink-3 uppercase">Tomorrow&apos;s drill</h2>
-          <p className="mt-1 text-base font-semibold text-ink">Cold question: {TYPE_LABELS[summary.tomorrowType].toLowerCase()}</p>
-          <p className="text-sm text-ink-2">{TYPE_HINTS[summary.tomorrowType]}</p>
+        <section data-field="paper" className="rounded-card px-5 py-6 sm:p-7">
+          <h2 className="type-label text-ink-2">Tomorrow&apos;s drill</h2>
+          <p className="type-display mt-2 text-[24px] leading-[1.1] text-ink">Cold question: {TYPE_LABELS[summary.tomorrowType].toLowerCase()}</p>
+          <p className="mt-2 text-base text-ink-2">{TYPE_HINTS[summary.tomorrowType]}</p>
         </section>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-ink-2">
+        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-base font-semibold text-field-fg">
             {pro ? "Pro: unlimited drills." : freeLeft === null ? "Free: 3 drills a day." : `${freeLeft} of 3 free drills left today.`}
           </p>
-          <Link href="/drill" className="flex h-11 items-center justify-center rounded-md bg-accent px-5 font-semibold text-white hover:bg-accent-hover">
+          <Button href="/drill" size="md" className="max-sm:w-full">
             {summary.today.total === 0 ? "Start today's drill" : "Do another drill"}
-          </Link>
+          </Button>
         </div>
       </article>
 
-      <Link href="/clarify" className="group flex items-center justify-between gap-4 rounded-lg border border-line bg-surface p-5 hover:border-ink-3">
+      <Link
+        href="/clarify"
+        data-field="paper"
+        className="group flex items-center justify-between gap-4 rounded-card p-5 shadow-sticker-sm transition-transform hover:-translate-y-0.5 sm:p-6"
+      >
         <div>
-          <p className="text-xs font-semibold tracking-wide text-accent uppercase">Drill 2 · {pro ? "Pro" : drill2Used ? "Pro" : "1 free try"}</p>
-          <p className="text-lg font-semibold text-ink">Clarify the vague task</p>
-          <p className="text-sm text-ink-2">Your manager gives a fuzzy task. Ask the right questions out loud, then confirm it back.</p>
+          <p className="type-label text-ink-2">Drill 2 · {pro ? "Pro" : drill2Used ? "Pro" : "1 free try"}</p>
+          <p className="type-display mt-1.5 text-[24px] leading-[1.1] text-ink">Clarify the vague task</p>
+          <p className="mt-1.5 text-[0.9375rem] text-ink-2">Your manager gives a fuzzy task. Ask the right questions out loud, then confirm it back.</p>
         </div>
-        <span className="text-xl text-accent transition-transform group-hover:translate-x-1" aria-hidden="true">→</span>
+        <span className="text-2xl transition-transform group-hover:translate-x-1" aria-hidden="true">→</span>
       </Link>
 
-      <Link href="/rehearse" className="group flex items-center justify-between gap-4 rounded-lg border border-line bg-surface p-5 hover:border-ink-3">
+      <Link
+        href="/rehearse"
+        data-field="ink"
+        className="group flex items-center justify-between gap-4 rounded-card p-5 shadow-sticker-sm transition-transform hover:-translate-y-0.5 sm:p-6"
+      >
         <div>
-          <p className="text-xs font-semibold tracking-wide text-accent uppercase">Pro</p>
-          <p className="text-lg font-semibold text-ink">Rehearse my real meeting</p>
-          <p className="text-sm text-ink-2">Paste your agenda, get the questions you&apos;re likely to face, and answer them out loud first.</p>
+          <p className="type-label text-lemon">Pro</p>
+          <p className="type-display mt-1.5 text-[24px] leading-[1.1]">Rehearse my real meeting</p>
+          <p className="mt-1.5 text-[0.9375rem] text-field-muted">Paste your agenda, get the questions you&apos;re likely to face, and answer them out loud first.</p>
         </div>
-        <span className="text-xl text-accent transition-transform group-hover:translate-x-1" aria-hidden="true">→</span>
+        <span className="text-2xl text-lemon transition-transform group-hover:translate-x-1" aria-hidden="true">→</span>
       </Link>
 
       {!pro && (
-        <div className="flex justify-center">
+        <div className="flex justify-center lg:justify-stretch">
           <Paywall reason="Keep the streak going: unlimited drills, drill 2 and meeting rehearsal." />
         </div>
       )}

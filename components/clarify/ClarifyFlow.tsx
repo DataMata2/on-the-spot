@@ -4,6 +4,8 @@
 
 import { errorMessage } from "@/lib/client-error";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { Blob, PaperCard } from "@/components/kit";
+import { buttonClasses } from "@/components/kit/Button";
 import { Paywall } from "@/components/paywall";
 import { AnswerCapture, MicExplainer, SLOW_RATE, TranscriptEditor, useSpeechToText, useTTS, type AnswerMode, type CapturedAnswer } from "@/components/voice";
 import type { PublicScenario } from "@/lib/drill2/engine";
@@ -234,11 +236,14 @@ export function ClarifyFlow() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-2">
-        <p className="text-xs font-semibold tracking-wide text-accent uppercase">Drill 2 · Clarify the vague task</p>
-        <h1 className="text-2xl font-semibold text-ink">{phase.k === "paywall" ? "Want another task? Clarify is part of Pro." : scenario && phase.k !== "intro" ? scenario.title : "Clarify the vague task"}</h1>
+      <header className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-4">
+          <p className="type-label text-field-mark">Drill 2 · Clarify the vague task</p>
+          <Blob state={phase.k === "result" ? "proud" : inScene ? "listening" : "thinking"} size={44} bob />
+        </div>
+        <h1 className={"type-display text-field-fg " + (phase.k === "intro" || phase.k === "paywall" ? "text-[clamp(40px,11vw,72px)] leading-[0.98]" : "text-[clamp(30px,8vw,48px)] leading-[1.02]")}>{phase.k === "paywall" ? "Want another task? Clarify is part of Pro." : scenario && phase.k !== "intro" ? scenario.title : "Clarify the vague task"}</h1>
         {phase.k === "intro" && (
-          <p className="text-base text-ink-2">
+          <p className="max-w-[56ch] text-lg text-field-muted">
             Your manager gives you a task that&apos;s missing details. Ask clarifying questions out loud, then say the task back. We check which details you found and
             confirmed. We never score your accent.
           </p>
@@ -246,61 +251,64 @@ export function ClarifyFlow() {
       </header>
 
       {phase.k === "intro" && (
-        <div className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 sm:p-6">
-          <ol className="flex list-decimal flex-col gap-1.5 pl-5 text-base text-ink">
+        <PaperCard className="flex flex-col gap-5" sticker="sm">
+          <ol className="flex list-decimal flex-col gap-2 pl-6 text-lg text-ink marker:font-mono marker:text-ink-2">
             <li>Listen to the task.</li>
             <li>Ask about what&apos;s unclear: one question at a time.</li>
             <li>Confirm: “So you want me to…”</li>
           </ol>
           <MicExplainer />
-          <button type="button" onClick={() => void start()} className="h-12 rounded-md bg-accent px-6 font-semibold text-white hover:bg-accent-hover sm:self-start">
+          <button type="button" onClick={() => void start()} className={buttonClasses({ size: "lg", className: "sm:self-start" })}>
             Start the task
           </button>
-        </div>
+        </PaperCard>
       )}
 
       {phase.k === "starting" && <Loading text="Getting your task…" />}
 
       {phase.k === "paywall" && (
         <div className="flex flex-col items-center gap-4">
-          <Paywall reason={phase.reason} />
+          <div data-field="paper" className="w-full max-w-md bg-transparent">
+            <Paywall reason={phase.reason} />
+          </div>
         </div>
       )}
 
       {scenario && (inScene || phase.k === "error") && (
         <>
-          <div className="rounded-lg border border-line bg-surface p-4 sm:p-5">
+          <div className="rounded-card bg-field-tint px-5 py-5 sm:p-6">
             {transferFrom && (
-              <p className="mb-2 text-xs font-semibold text-ink-3">New task, same skill as “{transferFrom}”</p>
+              <p className="type-label mb-3 text-field-mark">New task, same skill as “{transferFrom}”</p>
             )}
-            <p className="text-sm text-ink-2">{scenario.context}</p>
-            <p className="mt-2 text-xs text-ink-3">
+            <p className="text-lg text-field-fg">{scenario.context}</p>
+            <p className="mt-2 font-mono text-[13px] text-field-muted">
               {scenario.managerName}, {scenario.managerRole}
             </p>
-            <div className="mt-3 flex flex-wrap gap-4 text-sm">
-              <button type="button" className="inline-flex items-center max-sm:min-h-11 font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => say(managerLine)}>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button" className={buttonClasses({ variant: "ghost", size: "sm", className: "bg-field-tint" })} disabled={stt.listening} onClick={() => say(managerLine)}>
                 Play again
               </button>
-              <button type="button" className="inline-flex items-center max-sm:min-h-11 font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => tts.supported && void tts.speak(managerLine, { rate: SLOW_RATE })}>
+              <button type="button" className={buttonClasses({ variant: "ghost", size: "sm", className: "bg-field-tint" })} disabled={stt.listening} onClick={() => tts.supported && void tts.speak(managerLine, { rate: SLOW_RATE })}>
                 Slower
               </button>
             </div>
           </div>
 
+          <PaperCard padding="sm" className="flex flex-col gap-4">
           <ol className="flex flex-col gap-3" aria-live="polite" aria-label="Conversation">
             {thread.map((b) => (
               <li key={b.id} className={b.role === "user" ? "flex justify-end" : "flex justify-start"}>
                 <div
                   className={
                     b.role === "user"
-                      ? "max-w-[85%] rounded-2xl rounded-br-sm bg-accent px-4 py-2.5 text-base text-white"
+                      ? "max-w-[85%] rounded-chip rounded-br-sm bg-cobalt px-4 py-3 text-base text-paper"
                       : b.role === "hint"
-                        ? "max-w-[85%] rounded-2xl border border-amber-mid/60 bg-amber-soft px-4 py-2.5 text-sm text-amber"
-                        : "max-w-[85%] rounded-2xl rounded-bl-sm bg-surface px-4 py-2.5 text-base text-ink ring-1 ring-line"
+                        ? "max-w-[85%] rounded-chip bg-lemon px-4 py-3 text-[0.9375rem] text-ink"
+                        : "max-w-[85%] rounded-chip rounded-bl-sm bg-sunken px-4 py-3 text-base text-ink"
                   }
                 >
-                  {b.role === "manager" && <span className="mb-0.5 block text-xs font-semibold text-ink-3">{scenario.managerName}</span>}
-                  {b.role === "hint" && <span className="mb-0.5 block text-xs font-semibold">Hint</span>}
+                  {b.role === "manager" && <span className="type-label mb-1 block text-[11px] text-ink-2">{scenario.managerName}</span>}
+                  {b.role === "hint" && <span className="type-label mb-1 block text-[11px]">Hint</span>}
                   {b.text}
                 </div>
               </li>
@@ -309,17 +317,18 @@ export function ClarifyFlow() {
           </ol>
 
           {progress && (
-            <p className="text-sm text-ink-2 tabular-nums">
+            <p className="border-t border-line pt-3 font-mono text-[13px] text-ink-2 tabular-nums">
               Questions: {progress.questionsAsked} · Details found: {progress.found} of {progress.hiddenCount}
               {progress.hintsUsed > 0 && " · with help"}
             </p>
           )}
+          </PaperCard>
         </>
       )}
 
       {phase.k === "ask" && (
-        <div className="flex flex-col gap-4 rounded-lg border border-line bg-paper p-4 sm:p-5">
-          {nudge && <p className="rounded-md bg-amber-soft px-3 py-2 text-sm text-amber">{nudge}</p>}
+        <PaperCard padding="sm" className="flex flex-col gap-4">
+          {nudge && <p className="rounded-lg border-l-4 border-amber-mid bg-amber-soft px-3.5 py-2.5 text-sm text-ink">{nudge}</p>}
           <p className="text-sm font-semibold text-ink">Ask {scenario?.managerName} a question</p>
           <AnswerCapture
             key={`q-${captureKey}`}
@@ -333,7 +342,7 @@ export function ClarifyFlow() {
             label="Your question"
             submitLabel="Ask"
           />
-          <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
+          <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
             <button
               type="button"
               onClick={() => {
@@ -341,36 +350,36 @@ export function ClarifyFlow() {
                 setNudge(null);
                 setPhase({ k: "confirm" });
               }}
-              className="h-11 rounded-md bg-ink px-5 font-semibold text-white hover:bg-ink-2"
+              className={buttonClasses({ variant: "ink" })}
             >
               Confirm the task
             </button>
-            <button type="button" onClick={() => void askHint()} className="inline-flex items-center max-sm:min-h-11 text-sm font-semibold text-accent hover:underline">
+            <button type="button" onClick={() => void askHint()} className="inline-flex min-h-11 items-center rounded-pill px-3 text-sm font-semibold text-accent underline-offset-4 hover:underline">
               I&apos;m stuck: give me a hint
             </button>
           </div>
-        </div>
+        </PaperCard>
       )}
 
       {phase.k === "review-question" && (
-        <div className="flex flex-col gap-4 rounded-lg border border-line bg-paper p-4 sm:p-5">
+        <PaperCard padding="sm" className="flex flex-col gap-4">
           <TranscriptEditor raw={raw} value={edited} onChange={setEdited} maxLength={MAX_CHARS} label="Your question" />
-          <div className="flex flex-wrap items-center gap-4">
-            <button type="button" onClick={() => void sendTurn(raw, edited, mode)} disabled={!edited.trim()} className="h-11 rounded-md bg-accent px-5 font-semibold text-white hover:bg-accent-hover disabled:opacity-45">
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => void sendTurn(raw, edited, mode)} disabled={!edited.trim()} className={buttonClasses()}>
               Ask
             </button>
-            <button type="button" onClick={() => { freshCapture(); setPhase({ k: "ask" }); }} className="inline-flex items-center max-sm:min-h-11 text-sm font-semibold text-accent hover:underline">
+            <button type="button" onClick={() => { freshCapture(); setPhase({ k: "ask" }); }} className="inline-flex min-h-11 items-center rounded-pill px-3 text-sm font-semibold text-accent underline-offset-4 hover:underline">
               Say it again
             </button>
           </div>
-        </div>
+        </PaperCard>
       )}
 
       {phase.k === "waiting" && <Loading text={`${scenario?.managerName ?? "Your manager"} is answering…`} />}
 
       {phase.k === "confirm" && (
-        <div className="flex flex-col gap-4 rounded-lg border border-line bg-paper p-4 sm:p-5">
-          {nudge && <p className="rounded-md bg-amber-soft px-3 py-2 text-sm text-amber">{nudge}</p>}
+        <PaperCard padding="sm" className="flex flex-col gap-4">
+          {nudge && <p className="rounded-lg border-l-4 border-amber-mid bg-amber-soft px-3.5 py-2.5 text-sm text-ink">{nudge}</p>}
           <div>
             <p className="text-sm font-semibold text-ink">Confirm the task in your own words</p>
             <p className="mt-1 text-sm text-ink-2">Start with “So you want me to…” and say every detail: what, how, and when.</p>
@@ -387,24 +396,24 @@ export function ClarifyFlow() {
             label="Your confirmation"
             submitLabel="Confirm"
           />
-          <button type="button" onClick={() => { freshCapture(); setPhase({ k: "ask" }); }} className="inline-flex items-center max-sm:min-h-11 self-start text-sm font-semibold text-accent hover:underline">
+          <button type="button" onClick={() => { freshCapture(); setPhase({ k: "ask" }); }} className="inline-flex min-h-11 items-center self-start rounded-pill px-3 text-sm font-semibold text-accent underline-offset-4 hover:underline">
             Back to questions
           </button>
-        </div>
+        </PaperCard>
       )}
 
       {phase.k === "review-confirm" && (
-        <div className="flex flex-col gap-4 rounded-lg border border-line bg-paper p-4 sm:p-5">
+        <PaperCard padding="sm" className="flex flex-col gap-4">
           <TranscriptEditor raw={raw} value={edited} onChange={setEdited} maxLength={MAX_CHARS} label="Your confirmation" />
-          <div className="flex flex-wrap items-center gap-4">
-            <button type="button" onClick={() => void sendConfirm(raw, edited, mode)} disabled={!edited.trim()} className="h-11 rounded-md bg-accent px-5 font-semibold text-white hover:bg-accent-hover disabled:opacity-45">
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => void sendConfirm(raw, edited, mode)} disabled={!edited.trim()} className={buttonClasses()}>
               Check my confirmation
             </button>
-            <button type="button" onClick={() => { freshCapture(); setPhase({ k: "confirm" }); }} className="inline-flex items-center max-sm:min-h-11 text-sm font-semibold text-accent hover:underline">
+            <button type="button" onClick={() => { freshCapture(); setPhase({ k: "confirm" }); }} className="inline-flex min-h-11 items-center rounded-pill px-3 text-sm font-semibold text-accent underline-offset-4 hover:underline">
               Say it again
             </button>
           </div>
-        </div>
+        </PaperCard>
       )}
 
       {phase.k === "grading" && <Loading text="Checking your confirmation…" />}
@@ -412,9 +421,9 @@ export function ClarifyFlow() {
       {phase.k === "result" && <ResultCard grade={phase.grade} input={phase.input} onNext={() => void start()} />}
 
       {phase.k === "error" && (
-        <div className="flex flex-col items-start gap-3 rounded-md border border-red/30 bg-red-soft p-4" role="alert">
-          <p className="text-sm text-red">{phase.message}</p>
-          <button type="button" onClick={retry} className="h-10 rounded-md bg-surface px-4 max-sm:h-11 text-sm font-semibold text-ink ring-1 ring-line-strong hover:bg-paper">
+        <div data-field="paper" className="flex flex-col items-start gap-3 rounded-card border-l-4 border-red bg-red-soft px-5 py-4" role="alert">
+          <p className="text-[0.9375rem] text-red">{phase.message}</p>
+          <button type="button" onClick={retry} className={buttonClasses({ variant: "ink", size: "sm" })}>
             {phase.retry === "start" ? "Start a new task" : "Try again"}
           </button>
         </div>
@@ -425,8 +434,8 @@ export function ClarifyFlow() {
 
 function Loading({ text }: { text: string }) {
   return (
-    <div className="flex items-center justify-center gap-3 py-8 text-ink-2" role="status">
-      <span className="size-4 animate-spin rounded-full border-2 border-accent border-t-transparent" aria-hidden="true" />
+    <div className="flex items-center justify-center gap-3 py-8 text-field-muted" role="status">
+      <span className="size-4 animate-spin rounded-full border-2 border-field-mark border-t-transparent" aria-hidden="true" />
       {text}
     </div>
   );
