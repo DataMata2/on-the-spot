@@ -1,5 +1,6 @@
 import "server-only";
 import { cookies } from "next/headers";
+import { connection } from "next/server";
 import type Stripe from "stripe";
 import { getGuestId } from "@/lib/guest";
 import { PRO_COOKIE, proExpiryFromCheckout, proSecretFromEnv, signProToken, verifyProToken } from "@/lib/pro-token";
@@ -14,6 +15,8 @@ export async function isProRequest(): Promise<boolean> {
   const token = (await cookies()).get(PRO_COOKIE)?.value;
   const secret = proSecretFromEnv();
   if (!secret || !guestId || !token) return false;
+  // The expiry check reads the clock: mark this render dynamic first (Cache Components forbids Date.now() in prerender).
+  await connection();
   return verifyProToken(token, guestId, secret);
 }
 
