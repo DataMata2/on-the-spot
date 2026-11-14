@@ -127,6 +127,12 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   // uses it). The ref mirrors it for startQuestion.
   const [pickedNow, setPickedNow] = useState<Role | null>(null);
   const pickedRole = useRef<Role | null>(null);
+  // Set by a pick on the role picker: the intro then moves focus to its primary button (keyboard and screen-reader
+  // users continue in place instead of at the top of the page). Never set on a plain page load.
+  const focusAfterPick = useRef(false);
+  const introRef = useRef<HTMLElement | null>(null);
+  // The first start for an "Other" role waits on the AI writing its questions (several seconds): say so.
+  const [writingRole, setWritingRole] = useState(false);
 
   const seenRef = useRef<string[]>([]);
   const queueIdx = useRef(0);
@@ -134,6 +140,12 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   const gradeAbort = useRef<AbortController | null>(null);
 
   useEffect(() => () => gradeAbort.current?.abort(), []);
+
+  useEffect(() => {
+    if (!focusAfterPick.current || phase.k !== "intro" || !pickedNow) return;
+    focusAfterPick.current = false;
+    introRef.current?.querySelector<HTMLElement>("[data-intro-start]")?.focus();
+  }, [pickedNow, phase.k]);
 
   const help: HelpMark = hintOpen || carriedHelp ? "with_help" : "independent";
 
@@ -156,6 +168,8 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
         issuedAttempt = item.attemptId;
         issuedToken = item.ttsToken;
       } else {
+        const role = loadRole() ?? pickedRole.current;
+        setWritingRole(role?.id === "other" && seenRef.current.length === 0);
         setPhase({ k: "starting" });
         let res: Response;
         let body: { question?: ColdQuestion; attemptId?: string; ttsToken?: string; usage?: Usage; pro?: boolean; error?: string; code?: string };
@@ -163,7 +177,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
           res = await fetch("/api/drill1/start", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ type, excludeIds: seenRef.current, ...roleFields(loadRole() ?? pickedRole.current) }),
+            body: JSON.stringify({ type, excludeIds: seenRef.current, ...roleFields(role) }),
           });
           body = await res.json().catch(() => ({}));
         } catch {
@@ -194,7 +208,9 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
       setFeedback(null);
       setHintOpen(false);
       setStrongerOpen(false);
-      setCarriedHelp(carry);
+      // The server may serve another type than the retry asked for (the role pool ran out of that type): the
+      // stronger version is a model answer for the old type only, so it carries over as help only on a type match.
+      setCarriedHelp(carry && (!type || q.type === type));
       stt.reset();
       if (typing) {
         // Typists get the answer box right away while the question is read aloud: no think timer.
@@ -332,6 +348,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
     if (!saved || (wantsPick && !pickedNow)) {
       const pick = (role: Role) => {
         pickedRole.current = role;
+        focusAfterPick.current = true;
         saveRole(role);
         setPickedNow(role);
         if (wantsPick) window.history.replaceState(null, "", window.location.pathname);
@@ -347,7 +364,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   if (phase.k === "intro") {
     return (
       <DrillField inherit={inherit} field="night" spotlight>
-        <section className="flex flex-1 flex-col gap-6 lg:gap-10">
+        <section ref={introRef} className="flex flex-1 flex-col gap-6 lg:gap-10">
           <div className="relative flex flex-col gap-3 lg:gap-4">
             <Blob state="happy" size="clamp(52px,9vw,120px)" bob className="absolute top-0 right-0 max-sm:hidden" />
             {queue ? (
@@ -388,7 +405,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
             <div className="flex flex-col gap-5">
               <MicExplainer className="max-w-[60ch]" />
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
-                <Button size="lg" onClick={() => begin(false)}>
+                <Button size="lg" onClick={() => begin(false)} data-intro-start>
                   <MicGlyph />
                   Start with the mic
                 </Button>
@@ -402,7 +419,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
               <p className="max-w-[60ch] rounded-chip bg-field-tint px-5 py-4 text-sm text-field-fg">
                 This browser can&apos;t turn speech into text (Chrome, Edge and Safari can). You can still do the drill: type your answer the way you&apos;d say it.
               </p>
-              <Button size="lg" onClick={() => begin(true)} className="sm:w-fit">
+              <Button size="lg" onClick={() => begin(true)} className="sm:w-fit" data-intro-start>
                 Start, typing my answer
               </Button>
             </div>
@@ -481,7 +498,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
     }
     return (
       <DrillField inherit={inherit} field="night" spotlight>
-        <Loading text="Picking a question…" />
+        <Loading text={writingRole ? "Writing questions for your role…" : "Picking a question…"} />
       </DrillField>
     );
   }

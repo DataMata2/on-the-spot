@@ -17,7 +17,7 @@ const general = (type: QuestionType | null, excludeIds: readonly string[]) => (t
 /**
  * POST /api/drill1/start `{ type?, excludeIds?, role?, roleText? }` → `{ question, attemptId, ttsToken?, usage }`.
  * Starting a new question counts one drill against the free limit (3/day); over the limit → 402 `free_limit`.
- * `type` keeps a retry on the same question type; `excludeIds` (the questions already seen) keeps it a NEW question.
+ * `type` keeps a retry on the same question type while the role pool has one (else another type from the pool); `excludeIds` (the questions already seen) keeps it a NEW question.
  * `role` (lib/drill1/roles.ts ROLE_IDS; anything else = general) picks the bank. For "other", `roleText` (≤ 60 chars)
  * is turned into questions by the AI (one call per guest + text, cached); on any failure the general bank is used.
  * A generated question comes with `ttsToken` so POST /api/speech/tts will voice it.

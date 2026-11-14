@@ -78,6 +78,31 @@ export function roleLabel(role: Role): string {
   return ROLE_CHIPS.find((c) => c.id === role.id)?.label ?? "General questions";
 }
 
+/** Words that mark "Other" text as an instruction to the model, not a job (whole words, any case). */
+const NOT_A_JOB = /\b(system|prompts?|ignore|instructions?|jailbreak)\b/i;
+
+/**
+ * The "Other" text as a job title fit to show on screen, or null when it doesn't look like one: only letters, digits,
+ * spaces and - / & , . ' ( ); at most ROLE_TEXT_MAX chars; starts with a letter; a "/" only between two word
+ * characters (so "Data/analytics" passes, a "/command" or a tag remnant like "b x /b" does not); none of the
+ * NOT_A_JOB words. Display only: the server's own checks (cleanRoleText) are unchanged.
+ */
+export function displayJobTitle(text: unknown): string | null {
+  if (typeof text !== "string") return null;
+  const t = text.replace(/\s+/g, " ").trim();
+  if (!t || t.length > ROLE_TEXT_MAX) return null;
+  if (!/^\p{L}[\p{L}\p{M}\p{N} \-/&,.'()\u2019]*$/u.test(t)) return null;
+  if (/(^|[^\p{L}\p{N}])\/|\/($|[^\p{L}\p{N}])/u.test(t)) return null;
+  if (NOT_A_JOB.test(t)) return null;
+  return t;
+}
+
+/** roleLabel for the screen: the "Other" text only when it looks like a clean job title (displayJobTitle), else "Other". */
+export function roleDisplayLabel(role: Role): string {
+  if (role.id === "other") return displayJobTitle(role.text) ?? "Other";
+  return roleLabel(role);
+}
+
 export type QuestionVariant = "cold" | "transfer";
 
 export interface RoleQuestion extends ColdQuestion {
@@ -165,19 +190,24 @@ export function getAnyQuestion(id: unknown): ColdQuestion | null {
 /**
  * The next question from `pool` (a role bank or a generated set) for this start, or null when the pool has nothing
  * new (the caller then uses the general bank). No `type`: the first unseen one in pool order. With `type` (a retry
- * on the same type): an unseen one of that type, at random.
+ * on the same type): an unseen one of that type, at random; when the pool has none of that type left, an unseen one
+ * of another type, at random (the user stays in their role; the served question carries its own type).
  */
 export function pickFromPool<Q extends ColdQuestion>(pool: readonly Q[], type: QuestionType | null, excludeIds: readonly string[], rand: () => number = Math.random): Q | null {
   const seen = new Set(excludeIds);
-  const fresh = pool.filter((q) => !seen.has(q.id) && (!type || q.type === type));
+  const fresh = pool.filter((q) => !seen.has(q.id));
   if (fresh.length === 0) return null;
-  return type ? fresh[Math.min(fresh.length - 1, Math.floor(rand() * fresh.length))] : fresh[0];
+  if (!type) return fresh[0];
+  const sameType = fresh.filter((q) => q.type === type);
+  const from = sameType.length > 0 ? sameType : fresh;
+  return from[Math.min(from.length - 1, Math.floor(rand() * from.length))];
 }
 
 /**
  * The question POST /api/drill1/start serves for a bank role or "general" (generated "other" questions come in as
- * `pool`). A role's questions come first; when its bank (or the retry's type in it) is used up, the general bank
- * takes over: the jury order for a fresh no-type start, else pickQuestion.
+ * `pool`). A role's questions come first: a retry takes the same type from the role when it can, else another type
+ * from the role. Only when the whole role pool is used up does the general bank take over: the jury order for a
+ * fresh no-type start, else pickQuestion.
  */
 export function pickForRole(
   role: RoleId,

@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Blob, Button } from "@/components/kit";
 import { Paywall } from "@/components/paywall";
 import { localDay, TYPE_LABELS, TYPE_HINTS } from "@/lib/drill1/questions";
-import { roleLabel } from "@/lib/drill1/roles";
+import { roleDisplayLabel } from "@/lib/drill1/roles";
 import { loadRole, ROLE_EVENT, ROLE_KEY } from "@/lib/progress/role";
 import { loadResults, PROGRESS_EVENT, STORAGE_KEY, summarize } from "@/lib/progress/store";
 
@@ -157,7 +157,7 @@ export function ProgressCard() {
           <p className="mt-2 text-base text-ink-2">{TYPE_HINTS[summary.tomorrowType]}</p>
           <p className="mt-4 flex flex-wrap items-center gap-x-3 text-[0.9375rem] text-ink">
             <span>
-              <span className="font-semibold">Questions for:</span> {role ? roleLabel(role) : "not picked yet"}
+              <span className="font-semibold">Questions for:</span> {role ? roleDisplayLabel(role) : "not picked yet"}
             </span>
             <Link href="/drill?role=pick" className="inline-flex min-h-11 items-center font-semibold underline decoration-1 underline-offset-4 hover:no-underline">
               {role ? "change" : "pick your role"}

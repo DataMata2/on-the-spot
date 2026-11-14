@@ -3,7 +3,7 @@
 // One tap on a role chip goes straight on; "Other" opens a short text box (≤ 60 chars) and a continue button;
 // "Skip" picks the general questions. The parent saves the choice (lib/progress/role) and paints the field.
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Blob, Button, TextInput } from "@/components/kit";
 import { cleanRoleText, ROLE_CHIPS, ROLE_TEXT_MAX, type Role } from "@/lib/drill1/roles";
 
@@ -23,6 +23,14 @@ export function RolePicker({ onPick, current }: RolePickerProps) {
   const [text, setText] = useState(current?.id === "other" ? (current.text ?? "") : "");
   const inputId = useId();
   const cleaned = cleanRoleText(text);
+  // Opening "Other" with a tap or a key moves focus to its text box; opening the picker with "Other" already open
+  // (changing an "Other" role) does not steal focus on page load.
+  const focusInput = useRef(false);
+  useEffect(() => {
+    if (!otherOpen || !focusInput.current) return;
+    focusInput.current = false;
+    document.getElementById(inputId)?.focus();
+  }, [otherOpen, inputId]);
 
   const submitOther = () => {
     if (cleaned) onPick({ id: "other", text: cleaned });
@@ -53,7 +61,11 @@ export function RolePicker({ onPick, current }: RolePickerProps) {
                 aria-pressed={pressed}
                 aria-expanded={chip.id === "other" ? otherOpen : undefined}
                 aria-controls={chip.id === "other" ? `${inputId}-box` : undefined}
-                onClick={() => (chip.id === "other" ? setOtherOpen((o) => !o) : onPick({ id: chip.id }))}
+                onClick={() => {
+                  if (chip.id !== "other") return onPick({ id: chip.id });
+                  focusInput.current = !otherOpen;
+                  setOtherOpen(!otherOpen);
+                }}
               >
                 {chip.label}
               </button>
@@ -82,7 +94,6 @@ export function RolePicker({ onPick, current }: RolePickerProps) {
               onChange={(e) => setText(e.target.value.slice(0, ROLE_TEXT_MAX))}
               placeholder="e.g. Civil engineer, HR manager"
               autoComplete="organization-title"
-              autoFocus
               aria-describedby={`${inputId}-count`}
             />
             <p id={`${inputId}-count`} className="text-xs text-field-muted tabular-nums">
