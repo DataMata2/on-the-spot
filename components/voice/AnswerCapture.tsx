@@ -26,6 +26,8 @@ export interface AnswerCaptureProps {
   /** Shown above the controls, e.g. "We didn't catch enough. Try again." */
   notice?: string | null;
   placeholder?: string;
+  /** Label of the typing box. "Your answer" by default; drill 2 uses "Your question" / "Your confirmation". */
+  label?: string;
 }
 
 const ERROR_TEXT: Record<string, string> = {
@@ -36,7 +38,7 @@ const ERROR_TEXT: Record<string, string> = {
   other: "Speech recognition stopped unexpectedly. Try again or type your answer.",
 };
 
-export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, maxChars = 1500, notice, placeholder = "Type your answer the way you'd say it…" }: AnswerCaptureProps) {
+export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, maxChars = 1500, notice, placeholder = "Type your answer the way you'd say it…", label = "Your answer" }: AnswerCaptureProps) {
   const [typing, setTyping] = useState(Boolean(preferTyping));
   const [typed, setTyped] = useState("");
   const [heardNothing, setHeardNothing] = useState(false);
@@ -109,7 +111,7 @@ export function AnswerCapture({ stt, onCaptured, preferTyping, onModeChange, max
             if (typed.trim()) onCaptured({ raw: typed.trim(), mode: "typed" });
           }}
         >
-          <label htmlFor="typed-answer" className="text-sm font-semibold text-ink">Your answer</label>
+          <label htmlFor="typed-answer" className="text-sm font-semibold text-ink">{label}</label>
           <textarea
             id="typed-answer"
             autoFocus

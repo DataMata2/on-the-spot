@@ -9,7 +9,7 @@ import { isProRequest } from "@/lib/pro";
 
 export const metadata: Metadata = {
   title: "Pricing — On the Spot",
-  description: "Free: 3 spoken drills a day. Pro: unlimited drills, Clarify the vague task, Rehearse my real meeting, a daily plan. $12/month or $79/year.",
+  description: "Free: 3 spoken drills a day. Pro: unlimited drills, Clarify the vague task, and Rehearse my real meeting. $12/month or $79/year.",
 };
 
 const FREE = ["3 drills a day", "One try of Clarify the vague task", "Your progress, saved in this browser"];

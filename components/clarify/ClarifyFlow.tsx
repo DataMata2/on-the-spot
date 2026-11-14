@@ -328,6 +328,7 @@ export function ClarifyFlow() {
             onCaptured={(a) => onCaptured(a, "review-question")}
             maxChars={MAX_CHARS}
             placeholder="e.g. Which numbers do you mean?"
+            label="Your question"
           />
           <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
             <button
@@ -379,6 +380,7 @@ export function ClarifyFlow() {
             onCaptured={(a) => onCaptured(a, "review-confirm")}
             maxChars={MAX_CHARS}
             placeholder="So you want me to…"
+            label="Your confirmation"
           />
           <button type="button" onClick={() => { freshCapture(); setPhase({ k: "ask" }); }} className="self-start text-sm font-semibold text-accent hover:underline">
             Back to questions

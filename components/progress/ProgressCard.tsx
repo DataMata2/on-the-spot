@@ -154,7 +154,7 @@ export function ProgressCard() {
 
       {!pro && (
         <div className="flex justify-center">
-          <Paywall reason="Keep the streak going: unlimited drills, drill 2 and a daily plan." />
+          <Paywall reason="Keep the streak going: unlimited drills, drill 2 and meeting rehearsal." />
         </div>
       )}
     </div>

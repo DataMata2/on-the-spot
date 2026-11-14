@@ -3,10 +3,11 @@ import { Wordmark } from "./Wordmark";
 
 const LINKS = [
   { href: "/drill", label: "Practice" },
-  // Hidden on narrow phones so the nav fits; /progress links to it too.
-  { href: "/rehearse", label: "Rehearse", narrow: "max-sm:hidden" },
-  { href: "/progress", label: "Progress" },
-  { href: "/pricing", label: "Pricing" },
+  { href: "/clarify", label: "Clarify" },
+  { href: "/rehearse", label: "Rehearse" },
+  // Hidden on narrow phones so the three drills fit; the footer links to both.
+  { href: "/progress", label: "Progress", narrow: "max-sm:hidden" },
+  { href: "/pricing", label: "Pricing", narrow: "max-sm:hidden" },
 ] as const;
 
 export interface HeaderProps {
@@ -14,7 +15,7 @@ export interface HeaderProps {
   pro?: boolean;
 }
 
-/** Site header: wordmark, Practice / Progress / Pricing, and a Pro badge for Pro guests. No hooks; usable anywhere. */
+/** Site header: wordmark, Practice / Clarify / Rehearse / Progress / Pricing, and a Pro badge for Pro guests. No hooks; usable anywhere. */
 export function Header({ pro = false }: HeaderProps) {
   return (
     <header className="border-b border-line/70 bg-paper/90 backdrop-blur-sm">

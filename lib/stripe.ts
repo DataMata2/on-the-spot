@@ -49,6 +49,9 @@ export async function createCheckoutSession({
     mode: "subscription",
     // Always charge in USD, never convert to the visitor's local currency.
     adaptive_pricing: { enabled: false },
+    // Card only: no Link, Amazon Pay, Cash App or bank debits. (stripe@23 replaced `payment_method_types` on
+    // Checkout Sessions with this filter.) Wallets such as Apple Pay / Google Pay ride on `card`.
+    allowed_payment_method_types: ["card"],
     line_items: [
       {
         quantity: 1,

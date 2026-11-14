@@ -12,7 +12,6 @@ export const REHEARSE_AVAILABLE = true;
 const UNLOCKS: { title: string; detail: string; soon?: boolean }[] = [
   { title: "Unlimited drills", detail: "Free is 3 drills a day. Pro has no daily cap." },
   { title: "Clarify the vague task", detail: "Drill 2: turn \"can you look into this?\" into a clear ask, out loud." },
-  { title: "A daily plan", detail: "A few minutes a day, picked from what you found hardest." },
   {
     title: "Rehearse my real meeting",
     detail: "Paste your agenda and get the questions you're likely to face.",
