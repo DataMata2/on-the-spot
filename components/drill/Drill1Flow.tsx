@@ -668,9 +668,13 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
                 </span>
                 {!queueLast && (
                   <span className="text-[0.8125rem] font-medium whitespace-normal">
-                    {strongerOpen && (!queue || queue[queuePos]?.question.type === question.type)
+                    {/* In a rehearsal the next question's type is known. A new question may come back as another
+                        type (the role pool ran out), and then help doesn't carry (startQuestion), so say so (B-R13-01). */}
+                    {strongerOpen && queue && queue[queuePos]?.question.type === question.type
                       ? "Counts as with help: you saw the stronger version"
-                      : "Counts as independent"}
+                      : strongerOpen && !queue
+                        ? "Counts as with help if it's the same kind of question"
+                        : "Counts as independent"}
                   </span>
                 )}
               </Button>

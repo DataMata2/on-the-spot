@@ -96,8 +96,15 @@ export function RolePicker({ onPick, current }: RolePickerProps) {
               autoComplete="organization-title"
               aria-describedby={`${inputId}-count`}
             />
-            <p id={`${inputId}-count`} className="text-xs text-field-muted tabular-nums">
-              {text.length}/{ROLE_TEXT_MAX}
+            {/* At the limit the counter turns into the error pill (Badge pastDue colours, readable on any field) and
+                "Limit reached" is announced once; the count itself is not live, so typing isn't read out per key. */}
+            <p id={`${inputId}-count`} className="flex items-center gap-2 text-xs text-field-muted tabular-nums">
+              <span className={text.length >= ROLE_TEXT_MAX ? "rounded-sm bg-red-soft px-1.5 font-semibold text-red" : undefined}>
+                {text.length}/{ROLE_TEXT_MAX}
+              </span>
+              <span aria-live="polite">
+                {text.length >= ROLE_TEXT_MAX ? <span className="rounded-sm bg-red-soft px-1.5 font-semibold text-red">Limit reached</span> : null}
+              </span>
             </p>
           </div>
           <Button type="submit" size="lg" disabled={!cleaned} className="sm:w-fit">
