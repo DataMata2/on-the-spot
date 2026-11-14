@@ -19,7 +19,8 @@ export interface HeaderProps {
  * Site header: wordmark, Practice / Clarify / Rehearse / Progress / Pricing, and a Pro badge for Pro guests.
  * Below `sm` the links move into a menu button (MobileMenu). No hooks here; usable anywhere.
  * Colours come from the page's screen field (bg-field / text-field-fg): the page's <ScreenField> marks itself
- * data-header-field and globals.css copies that field's variables onto <body>. Paper when no field claims it.
+ * data-header-field and globals.css copies that field's variables onto this header via header:has(+ main ...),
+ * so a page must render the header immediately before its <main>. Paper when no field claims it.
  */
 export function Header({ pro = false }: HeaderProps) {
   return (

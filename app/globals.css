@@ -141,7 +141,7 @@
 
 /*
  * Field-aware colours. They read the --field-* variables set by [data-field] (ScreenField, PaperCard) and
- * by body:has([data-header-field]) (the header). `inline` so each element resolves its nearest field.
+ * by header:has(+ main [data-header-field]) / main:has(...). `inline` so each element resolves its nearest field.
  */
 @theme inline {
   --color-field: var(--field-bg);
@@ -186,12 +186,17 @@
 /*
  * Screen fields. Every field sets the same variable set; the [data-field] element paints itself and every
  * field-aware class inside it (bg-field, text-field-fg, the kit Button, Blob, focus ring) follows.
- * The header and <body> follow the page's ONE field marked data-header-field="<name>" (ScreenField does this
- * by default), via body:has(...). No JS: it works before hydration and when a client flow swaps fields.
+ * The header and the page's <main> follow the page's ONE field marked data-header-field="<name>" (ScreenField
+ * does this by default). No JS: it works before hydration and when a client flow swaps fields.
+ * Scoped per page, NOT body:has(...): with cacheComponents, Next keeps pages you navigated away from in the DOM
+ * as further <header><main><footer> siblings of <body>, hidden with inline display:none, and their fields would
+ * still match a body-level :has(). Every page renders <SiteHeader/> immediately followed by <main>, so each header
+ * reads only its own main (header:has(+ main ...)) and each main paints its own field.
  */
 :root,
 [data-field="paper"],
-body:has([data-header-field="paper"]) {
+header:has(+ main [data-header-field="paper"]),
+main:has([data-header-field="paper"]) {
   --field-bg: var(--color-paper);
   --field-fg: var(--color-ink);
   --field-muted: var(--color-ink-2);
@@ -205,7 +210,8 @@ body:has([data-header-field="paper"]) {
 }
 
 [data-field="tomato"],
-body:has([data-header-field="tomato"]) {
+header:has(+ main [data-header-field="tomato"]),
+main:has([data-header-field="tomato"]) {
   --field-bg: var(--color-tomato);
   --field-fg: var(--color-ink);
   --field-muted: #33201a;
@@ -219,7 +225,8 @@ body:has([data-header-field="tomato"]) {
 }
 
 [data-field="pink"],
-body:has([data-header-field="pink"]) {
+header:has(+ main [data-header-field="pink"]),
+main:has([data-header-field="pink"]) {
   --field-bg: var(--color-pink);
   --field-fg: var(--color-ink);
   --field-muted: #3a2a33;
@@ -233,7 +240,8 @@ body:has([data-header-field="pink"]) {
 }
 
 [data-field="lemon"],
-body:has([data-header-field="lemon"]) {
+header:has(+ main [data-header-field="lemon"]),
+main:has([data-header-field="lemon"]) {
   --field-bg: var(--color-lemon);
   --field-fg: var(--color-ink);
   --field-muted: var(--color-ink-2);
@@ -247,7 +255,8 @@ body:has([data-header-field="lemon"]) {
 }
 
 [data-field="night"],
-body:has([data-header-field="night"]) {
+header:has(+ main [data-header-field="night"]),
+main:has([data-header-field="night"]) {
   --field-bg: var(--color-night);
   --field-fg: var(--color-paper);
   --field-muted: rgb(255 253 247 / 0.72);
@@ -261,7 +270,8 @@ body:has([data-header-field="night"]) {
 }
 
 [data-field="cobalt"],
-body:has([data-header-field="cobalt"]) {
+header:has(+ main [data-header-field="cobalt"]),
+main:has([data-header-field="cobalt"]) {
   --field-bg: var(--color-cobalt);
   --field-fg: var(--color-paper);
   --field-muted: rgb(255 253 247 / 0.86);
@@ -290,7 +300,8 @@ body:has([data-header-field="cobalt"]) {
 
 @layer base {
   /* In the base layer so a utility on the same element (bg-sunken, text-ink...) still wins. */
-  [data-field] {
+  [data-field],
+  main:has([data-header-field]) {
     background-color: var(--field-bg);
     color: var(--field-fg);
   }
