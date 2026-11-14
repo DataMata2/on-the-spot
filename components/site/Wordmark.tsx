@@ -1,21 +1,23 @@
+import { Blob } from "@/components/kit/Blob";
 import { cx } from "@/components/kit/cx";
 
-/** A speech bubble with a filled dot: "you, speaking, now". The product's mark. */
+/**
+ * The product's mark: the "spot" blob with two dot eyes. Colours follow the nearest screen field
+ * (ink blob on light fields, lemon on dark ones; the eyes are the field colour).
+ */
 export function Mark({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 20 20" aria-hidden className={cx("size-5", className)}>
-      <path
-        d="M4 2.5h12A2.5 2.5 0 0 1 18.5 5v7a2.5 2.5 0 0 1-2.5 2.5H9.2l-3.6 3a.6.6 0 0 1-1-.46V14.5H4A2.5 2.5 0 0 1 1.5 12V5A2.5 2.5 0 0 1 4 2.5Z"
-        className="fill-accent"
-      />
-      <circle cx="10" cy="8.5" r="2.4" className="fill-white" />
-    </svg>
-  );
+  return <Blob state="idle" size="1.1em" className={cx("-translate-y-px", className)} />;
 }
 
+/** "On the Spot" in the display face with the blob mark. Never wraps. */
 export function Wordmark({ className, markClassName }: { className?: string; markClassName?: string }) {
   return (
-    <span className={cx("inline-flex items-center gap-2 text-[1.0625rem] font-bold tracking-[-0.01em] text-ink", className)}>
+    <span
+      className={cx(
+        "inline-flex items-center gap-[0.35em] font-display text-[1.3125rem] leading-none font-extrabold tracking-[-0.03em] whitespace-nowrap text-current [font-variation-settings:'opsz'_24,'wdth'_88] lg:text-[1.5rem]",
+        className,
+      )}
+    >
       <Mark className={markClassName} />
       On the Spot
     </span>

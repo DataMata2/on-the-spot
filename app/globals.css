@@ -3,53 +3,65 @@
 @import "shadcn/tailwind.css";
 
 /*
- * On the Spot design tokens. Light theme only.
- * Paper and ink carry the page; deep green is the single accent;
- * amber marks a warning; red is reserved for errors.
+ * On the Spot design tokens (product B, "screen fields" redesign). Light colour scheme only:
+ * each screen is a flat field of colour (tomato / night / cobalt / pink / lemon / paper) with paper cards
+ * and hard ink "sticker" shadows. The semantic names (accent, red, amber...) are kept and remapped so
+ * untouched code re-themes: `accent` is cobalt, so the existing `text-white` on `bg-accent` stays legible.
+ * Field-aware colours (bg-field, text-field-fg, ...) are in @theme inline below; see the "Screen fields" block.
  */
 @theme {
   /* Surfaces */
-  --color-paper: #f5f5f0;
-  --color-surface: #ffffff;
-  --color-sunken: #ecede6;
+  --color-paper: #fffdf7;
+  --color-surface: #fffdf7;
+  --color-sunken: #f2efe6;
 
   /* Ink */
-  --color-ink: #17201c;
-  --color-ink-2: #4b5650;
-  --color-ink-3: #66706a;
+  --color-ink: #100e17;
+  --color-ink-2: #4a4658;
+  --color-ink-3: #625e70;
 
   /* Lines */
-  --color-line: #e0e1d9;
-  --color-line-strong: #c9ccc2;
+  --color-line: #e4e0d4;
+  --color-line-strong: #c9c4b6;
 
-  /* Accent: deep green */
-  --color-accent: #0e5a3c;
-  --color-accent-hover: #0a4a31;
-  --color-accent-press: #083d28;
-  --color-accent-mid: #7fb397;
-  --color-accent-soft: #e2eee6;
-  --color-accent-ink: #0b4430;
+  /* Screen field colours */
+  --color-tomato: #ff5a2c;
+  --color-night: #0d0b1e;
+  --color-cobalt: #2b3bf0;
+  --color-pink: #ff6fae;
+  --color-lemon: #ffe04a;
+  --color-mint: #3ddc97;
+
+  /* Accent: cobalt (white text passes on it, 7:1) */
+  --color-accent: #2b3bf0;
+  --color-accent-hover: #1f2dd6;
+  --color-accent-press: #1924b5;
+  --color-accent-mid: #8f98f7;
+  --color-accent-soft: #e4e7ff;
+  --color-accent-ink: #1a24a8;
 
   /* Due / warning: amber */
   --color-amber: #8f5300;
   --color-amber-mid: #e2a33c;
   --color-amber-soft: #fbefd8;
 
-  /* Past due: red */
+  /* Past due / error: red */
   --color-red: #a8261d;
   --color-red-soft: #fbe6e2;
 
-  /* Type */
-  --font-sans: var(--font-public-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Type: body Instrument Sans, display Bricolage Grotesque (use the type-display utility), labels DM Mono */
+  --font-sans: var(--font-instrument-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-bricolage), var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-dm-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
 
   --text-xs: 0.8125rem;
   --text-xs--line-height: 1.25rem;
   --text-sm: 0.9375rem;
   --text-sm--line-height: 1.4rem;
-  --text-base: 1.0625rem;
-  --text-base--line-height: 1.6rem;
-  --text-lg: 1.25rem;
-  --text-lg--line-height: 1.75rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: 1.65rem;
   --text-xl: 1.625rem;
   --text-xl--line-height: 2.05rem;
   --text-2xl: 2.125rem;
@@ -57,27 +69,97 @@
   --text-3xl: 3rem;
   --text-3xl--line-height: 3.1rem;
   --text-4xl: 4rem;
-  --text-4xl--line-height: 4rem;
+  --text-4xl--line-height: 4.1rem;
+  /* Display sizes: line-height 1 so stacked display lines never overlap */
+  --text-5xl: 5.5rem;
+  --text-5xl--line-height: 1;
+  --text-6xl: 8rem;
+  --text-6xl--line-height: 1;
+  --text-7xl: 11rem;
+  --text-7xl--line-height: 1;
 
-  /* One radius scale */
+  /* Radius: cards 28px, chips/plans 20px, pills fully round */
   --radius-*: initial;
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
+  --radius-chip: 20px;
+  --radius-card: 28px;
+  --radius-pill: 9999px;
   --radius-full: 9999px;
 
-  /* One elevation, for the single raised surface on a page */
+  /* No soft shadows in the new look; stickers get a hard ink offset. `raised` kept for untouched code. */
   --shadow-*: initial;
-  --shadow-raised: 0 1px 0 rgb(23 32 28 / 0.04), 0 18px 40px -24px rgb(23 32 28 / 0.28);
+  --shadow-raised: 0 1px 0 rgb(16 14 23 / 0.04), 0 18px 40px -24px rgb(16 14 23 / 0.28);
+  --shadow-sticker: 0 8px 0 var(--color-ink);
+  --shadow-sticker-sm: 0 4px 0 var(--color-ink);
+  --shadow-sticker-lg: 0 12px 0 var(--color-ink);
+  --drop-shadow-sticker: 0 8px 0 rgb(16 14 23 / 0.9);
 
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Motion. Always pair with `motion-safe:` (e.g. motion-safe:animate-bob); reduced motion also kills them below. */
+  --animate-bob: bob 2.8s ease-in-out infinite;
+  --animate-blink: blink 4.5s ease-in-out infinite;
+  --animate-rec-pulse: rec-pulse 1.6s ease-out infinite;
+  --animate-wave: wave 1.1s ease-in-out infinite alternate;
+  --animate-spot-breathe: spot-breathe 6s ease-in-out infinite;
+  --animate-step-in: pp-step-in 0.32s var(--ease-out-soft) both;
+
+  @keyframes bob {
+    50% {
+      transform: translateY(-4px) rotate(-3deg);
+    }
+  }
+  @keyframes blink {
+    0%, 92%, 100% {
+      transform: scaleY(1);
+    }
+    95% {
+      transform: scaleY(0.1);
+    }
+  }
+  @keyframes rec-pulse {
+    from {
+      box-shadow: 0 0 0 0 rgb(255 90 44 / 0.55);
+    }
+    to {
+      box-shadow: 0 0 0 28px rgb(255 90 44 / 0);
+    }
+  }
+  @keyframes wave {
+    to {
+      transform: scaleY(0.45);
+    }
+  }
+  @keyframes spot-breathe {
+    50% {
+      opacity: 0.75;
+    }
+  }
 }
 
+/*
+ * Field-aware colours. They read the --field-* variables set by [data-field] (ScreenField, PaperCard) and
+ * by body:has([data-header-field]) (the header). `inline` so each element resolves its nearest field.
+ */
+@theme inline {
+  --color-field: var(--field-bg);
+  --color-field-fg: var(--field-fg);
+  --color-field-muted: var(--field-muted);
+  --color-field-mark: var(--field-mark);
+  --color-field-face: var(--field-face);
+  --color-field-cta: var(--field-cta-bg);
+  --color-field-cta-fg: var(--field-cta-fg);
+  --color-field-tint: var(--field-tint);
+  --color-field-line: var(--field-line);
+  --color-field-ring: var(--field-ring);
+}
 
 /*
  * shadcn/ui tokens (components/ui/button.tsx, card.tsx, used by the skeleton's checkout pages),
  * mapped onto the On the Spot palette so those pages match the rest of the site.
- * `accent` is ours (deep green) and is deliberately not remapped.
+ * `accent` is ours (cobalt) and is deliberately not remapped.
  */
 @theme inline {
   --color-background: var(--color-paper);
@@ -98,29 +180,141 @@
   --color-input: var(--color-line-strong);
   --color-ring: var(--color-accent);
   --radius-xl: var(--radius-lg);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-display);
+}
+
+/*
+ * Screen fields. Every field sets the same variable set; the [data-field] element paints itself and every
+ * field-aware class inside it (bg-field, text-field-fg, the kit Button, Blob, focus ring) follows.
+ * The header and <body> follow the page's ONE field marked data-header-field="<name>" (ScreenField does this
+ * by default), via body:has(...). No JS: it works before hydration and when a client flow swaps fields.
+ */
+:root,
+[data-field="paper"],
+body:has([data-header-field="paper"]) {
+  --field-bg: var(--color-paper);
+  --field-fg: var(--color-ink);
+  --field-muted: var(--color-ink-2);
+  --field-mark: var(--color-ink);
+  --field-face: var(--color-paper);
+  --field-cta-bg: var(--color-ink);
+  --field-cta-fg: var(--color-paper);
+  --field-tint: rgb(16 14 23 / 0.07);
+  --field-line: var(--color-ink);
+  --field-ring: var(--color-cobalt);
+}
+
+[data-field="tomato"],
+body:has([data-header-field="tomato"]) {
+  --field-bg: var(--color-tomato);
+  --field-fg: var(--color-ink);
+  --field-muted: #33201a;
+  --field-mark: var(--color-ink);
+  --field-face: var(--color-tomato);
+  --field-cta-bg: var(--color-ink);
+  --field-cta-fg: var(--color-paper);
+  --field-tint: rgb(16 14 23 / 0.1);
+  --field-line: var(--color-ink);
+  --field-ring: var(--color-ink);
+}
+
+[data-field="pink"],
+body:has([data-header-field="pink"]) {
+  --field-bg: var(--color-pink);
+  --field-fg: var(--color-ink);
+  --field-muted: #3a2a33;
+  --field-mark: var(--color-ink);
+  --field-face: var(--color-pink);
+  --field-cta-bg: var(--color-ink);
+  --field-cta-fg: var(--color-paper);
+  --field-tint: rgb(16 14 23 / 0.1);
+  --field-line: var(--color-ink);
+  --field-ring: var(--color-ink);
+}
+
+[data-field="lemon"],
+body:has([data-header-field="lemon"]) {
+  --field-bg: var(--color-lemon);
+  --field-fg: var(--color-ink);
+  --field-muted: var(--color-ink-2);
+  --field-mark: var(--color-ink);
+  --field-face: var(--color-lemon);
+  --field-cta-bg: var(--color-ink);
+  --field-cta-fg: var(--color-paper);
+  --field-tint: rgb(16 14 23 / 0.08);
+  --field-line: var(--color-ink);
+  --field-ring: var(--color-ink);
+}
+
+[data-field="night"],
+body:has([data-header-field="night"]) {
+  --field-bg: var(--color-night);
+  --field-fg: var(--color-paper);
+  --field-muted: rgb(255 253 247 / 0.72);
+  --field-mark: var(--color-lemon);
+  --field-face: var(--color-night);
+  --field-cta-bg: var(--color-paper);
+  --field-cta-fg: var(--color-ink);
+  --field-tint: rgb(255 253 247 / 0.1);
+  --field-line: rgb(255 253 247 / 0.7);
+  --field-ring: var(--color-lemon);
+}
+
+[data-field="cobalt"],
+body:has([data-header-field="cobalt"]) {
+  --field-bg: var(--color-cobalt);
+  --field-fg: var(--color-paper);
+  --field-muted: rgb(255 253 247 / 0.86);
+  --field-mark: var(--color-lemon);
+  --field-face: var(--color-cobalt);
+  --field-cta-bg: var(--color-paper);
+  --field-cta-fg: var(--color-ink);
+  --field-tint: rgb(255 253 247 / 0.14);
+  --field-line: rgb(255 253 247 / 0.75);
+  --field-ring: var(--color-lemon);
+}
+
+/* Ink: for dark sticker cards and the footer. */
+[data-field="ink"] {
+  --field-bg: var(--color-ink);
+  --field-fg: var(--color-paper);
+  --field-muted: rgb(255 253 247 / 0.72);
+  --field-mark: var(--color-lemon);
+  --field-face: var(--color-ink);
+  --field-cta-bg: var(--color-lemon);
+  --field-cta-fg: var(--color-ink);
+  --field-tint: rgb(255 253 247 / 0.1);
+  --field-line: rgb(255 253 247 / 0.7);
+  --field-ring: var(--color-lemon);
 }
 
 @layer base {
+  /* In the base layer so a utility on the same element (bg-sunken, text-ink...) still wins. */
+  [data-field] {
+    background-color: var(--field-bg);
+    color: var(--field-fg);
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
     text-rendering: optimizeLegibility;
   }
 
   body {
-    background-color: var(--color-paper);
-    color: var(--color-ink);
+    background-color: var(--field-bg);
+    color: var(--field-fg);
     font-family: var(--font-sans);
     font-variant-numeric: tabular-nums;
+    overflow-x: clip;
   }
 
   ::selection {
-    background-color: var(--color-accent-soft);
-    color: var(--color-accent-ink);
+    background-color: var(--color-lemon);
+    color: var(--color-ink);
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 3px solid var(--field-ring);
     outline-offset: 2px;
   }
 
@@ -135,6 +329,79 @@
   }
 }
 
+/* Display type: Bricolage Grotesque 800, high optical size. Tracking never tighter than -0.03em. */
+@utility type-display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  font-variation-settings: "opsz" 96, "wdth" 88;
+}
+
+/* Sub-display headings (landing h1, progress lead): Bricolage 700, medium optical size. */
+@utility type-heading {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 48, "wdth" 92;
+}
+
+/* Small uppercase labels: DM Mono 500. */
+@utility type-label {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Colour trail behind a question on the night field (mock .q). */
+@utility text-trail {
+  text-shadow: -10px 0 8px rgb(255 160 120 / 0.28), -26px 0 16px rgb(255 120 80 / 0.16), -46px 0 26px rgb(120 110 255 / 0.12);
+}
+
+/* The night-field spotlight: a warm cone from above. Content stays above it (isolate + z -1). */
+@utility spotlight {
+  position: relative;
+  isolation: isolate;
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(ellipse 70% 42% at 50% 34%, rgb(255 241 214 / 0.16), transparent 70%),
+      conic-gradient(from 180deg at 50% -8%, transparent 0 160deg, rgb(255 241 214 / 0.09) 168deg, rgb(255 241 214 / 0.14) 180deg, rgb(255 241 214 / 0.09) 192deg, transparent 200deg 360deg);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    &::before {
+      animation: var(--animate-spot-breathe);
+    }
+  }
+}
+
+/* While recording the spotlight turns tomato, glowing from below. Use together with `spotlight`. */
+@utility spotlight-rec {
+  &::before {
+    background:
+      radial-gradient(ellipse 80% 40% at 50% 92%, rgb(255 90 44 / 0.38), transparent 70%),
+      radial-gradient(ellipse 60% 30% at 50% 40%, rgb(255 241 214 / 0.06), transparent 70%);
+  }
+}
+
+/* Stripe band (landing bottom edge). Stripe colour = currentColor; set the height, e.g. `h-[22px] text-ink`. */
+@utility stripe-band {
+  background-image: repeating-linear-gradient(90deg, currentColor 0 14px, transparent 14px 28px);
+}
+
+/* Scalloped price-sticker shape as a mask (the Sticker component draws the same path as SVG). */
+@utility mask-scallop {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Cpath d='M100 4l13 15 19-8 6 20 20 0-3 20 18 9-10 17 13 15-17 11 4 20-20 3-3 20-19-5-11 17-15-13-15 13-11-17-19 5-3-20-20-3 4-20-17-11 13-15-10-17 18-9-3-20 20 0 6-20 19 8z'/%3E%3C/svg%3E");
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+}
+
 /* The "set aside" segment of the meter: lighter accent, hatched so it never reads as money already paid. */
 @utility hatch-accent {
   background-color: var(--color-accent-soft);
@@ -146,6 +413,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .animate-bob,
+  .animate-blink,
+  .animate-rec-pulse,
+  .animate-wave,
+  .animate-spot-breathe,
+  .spotlight::before {
+    animation: none !important;
+  }
+
   *,
   *::before,
   *::after {

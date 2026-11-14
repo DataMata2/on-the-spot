@@ -2,7 +2,15 @@ import Link from "next/link";
 import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode } from "react";
 import { cx } from "./cx";
 
-export type ButtonVariant = "primary" | "secondary" | "ghost";
+/**
+ * primary   — the field's CTA pill: ink pill on light fields (paper/tomato/pink/lemon), paper pill on dark
+ *             fields (night/cobalt/ink). Follows the nearest [data-field] automatically.
+ * secondary — outline pill (2px inset ring in the field's text colour), transparent fill.
+ * ghost     — text-only pill, faint field tint on hover / a soft chip on dark fields.
+ * ink / paper / lemon — fixed-colour pills when the field's default is wrong for the spot
+ *             (e.g. `lemon` for the big "Try again" on the cobalt feedback field).
+ */
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "ink" | "paper" | "lemon";
 export type ButtonSize = "sm" | "md" | "lg";
 
 interface CommonProps {
@@ -25,20 +33,23 @@ export type ButtonButtonProps = CommonProps &
 export type ButtonProps = ButtonLinkProps | ButtonButtonProps;
 
 const base =
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md font-semibold select-none " +
-  "transition-[background-color,border-color,color,transform] duration-150 ease-out-soft " +
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-pill font-semibold select-none " +
+  "transition-[background-color,box-shadow,color,transform,filter] duration-150 ease-out-soft " +
   "active:translate-y-px disabled:pointer-events-none disabled:opacity-45 aria-disabled:pointer-events-none aria-disabled:opacity-45";
 
 const variants: Record<ButtonVariant, string> = {
-  primary: "bg-accent text-white hover:bg-accent-hover active:bg-accent-press",
-  secondary: "border border-line-strong bg-surface text-ink hover:border-ink-3 hover:bg-paper",
-  ghost: "text-accent hover:bg-accent-soft",
+  primary: "bg-field-cta text-field-cta-fg hover:opacity-90",
+  secondary: "bg-transparent text-field-fg shadow-[inset_0_0_0_2px_var(--field-line)] hover:bg-field-tint",
+  ghost: "bg-transparent text-field-fg hover:bg-field-tint",
+  ink: "bg-ink text-paper hover:opacity-90",
+  paper: "bg-paper text-ink hover:brightness-95",
+  lemon: "bg-lemon text-ink hover:brightness-105",
 };
 
 const sizes: Record<ButtonSize, string> = {
-  sm: "h-9 px-3.5 text-sm",
-  md: "h-11 px-5 text-base",
-  lg: "h-13 px-6 text-base",
+  sm: "min-h-9 px-4 text-sm max-sm:min-h-11",
+  md: "min-h-11 px-5 text-[0.9375rem]",
+  lg: "min-h-14 px-7 text-base sm:text-[1.0625rem]",
 };
 
 /** The button look for elements Button can't render, e.g. a plain <a download> to a route handler. */
@@ -51,7 +62,7 @@ export function buttonClasses({
   return cx(base, variants[variant], sizes[size], fullWidth && "w-full", className);
 }
 
-/** Primary / secondary / ghost button in three sizes; a link when `href` is given. */
+/** Field-aware pill button (see ButtonVariant) in three sizes; a link when `href` is given. */
 export function Button(props: ButtonProps) {
   const { variant = "primary", size = "md", fullWidth = false, className, children } = props;
   const classes = buttonClasses({ variant, size, fullWidth, className });

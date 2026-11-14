@@ -54,18 +54,18 @@ export function MobileMenu({ links }: { links: readonly MobileMenuLink[] }) {
     <details ref={ref} className="group relative sm:hidden">
       <summary
         aria-label="Menu"
-        className="-mr-1 flex size-11 cursor-pointer list-none items-center justify-center rounded-md text-ink-2 hover:bg-sunken hover:text-ink [&::-webkit-details-marker]:hidden"
+        className="-mr-2 flex size-11 cursor-pointer list-none items-center justify-center rounded-pill text-field-fg hover:bg-field-tint group-open:bg-field-tint [&::-webkit-details-marker]:hidden"
       >
         <svg viewBox="0 0 20 20" aria-hidden className="size-5 group-open:hidden">
-          <path d="M3 5.5h14M3 10h14M3 14.5h14" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+          <path d="M3 5.5h14M3 10h14M3 14.5h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
         <svg viewBox="0 0 20 20" aria-hidden className="hidden size-5 group-open:block">
-          <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" />
+          <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
         </svg>
       </summary>
       <nav
         aria-label="Main"
-        className="absolute top-full right-0 z-50 mt-2 flex w-52 flex-col rounded-md border border-line bg-surface py-1 shadow-raised"
+        className="absolute top-full right-0 z-50 mt-2 flex w-56 flex-col overflow-hidden rounded-chip border-2 border-ink bg-paper py-1.5 text-ink shadow-sticker-sm [--field-ring:var(--color-cobalt)]"
       >
         {links.map((l) => (
           <Link
@@ -75,7 +75,7 @@ export function MobileMenu({ links }: { links: readonly MobileMenuLink[] }) {
             onClick={() => {
               if (ref.current) ref.current.open = false;
             }}
-            className="flex min-h-11 items-center px-4 text-sm font-medium text-ink-2 hover:bg-sunken hover:text-ink aria-[current=page]:text-ink"
+            className="flex min-h-11 items-center px-5 text-base font-semibold text-ink underline-offset-4 hover:bg-sunken aria-[current=page]:underline aria-[current=page]:decoration-2"
           >
             {l.label}
           </Link>

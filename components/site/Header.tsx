@@ -18,27 +18,29 @@ export interface HeaderProps {
 /**
  * Site header: wordmark, Practice / Clarify / Rehearse / Progress / Pricing, and a Pro badge for Pro guests.
  * Below `sm` the links move into a menu button (MobileMenu). No hooks here; usable anywhere.
+ * Colours come from the page's screen field (bg-field / text-field-fg): the page's <ScreenField> marks itself
+ * data-header-field and globals.css copies that field's variables onto <body>. Paper when no field claims it.
  */
 export function Header({ pro = false }: HeaderProps) {
   return (
-    <header className="border-b border-line/70 bg-paper/90 backdrop-blur-sm">
-      <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-3 px-4 sm:px-6">
-        <div className="flex min-w-0 items-center gap-2">
-          <Link href="/" aria-label="On the Spot home" className="-mx-1 rounded-sm px-1 py-1 max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
-            <Wordmark className="whitespace-nowrap max-[374px]:text-[0.9375rem]" markClassName="max-[400px]:hidden" />
+    <header className="relative z-20 bg-field text-field-fg">
+      <div className="mx-auto flex h-16 w-full max-w-[1200px] items-center justify-between gap-3 px-5 sm:px-8 lg:h-20 lg:box-content lg:px-12">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Link href="/" aria-label="On the Spot home" className="-mx-1 rounded-md px-1 py-1 max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
+            <Wordmark className="max-[359px]:text-[1.1875rem]" />
           </Link>
           {pro && (
-            <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 text-[0.6875rem] leading-4 font-bold tracking-wide text-white uppercase">
+            <span className="type-label shrink-0 rounded-pill bg-field-mark px-2.5 py-1 text-[0.6875rem] leading-4 text-field-face">
               Pro
             </span>
           )}
         </div>
-        <nav aria-label="Main" className="-mr-2 flex items-center max-sm:hidden">
+        <nav aria-label="Main" className="-mr-3 flex items-center max-sm:hidden lg:gap-1">
           {LINKS.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className="rounded-md px-2 py-1.5 text-sm font-medium text-ink-2 transition-colors hover:bg-sunken hover:text-ink sm:px-3"
+              className="rounded-pill px-3 py-2 text-[0.9375rem] font-medium text-field-fg underline-offset-4 transition-colors hover:bg-field-tint hover:underline"
             >
               {l.label}
             </Link>
