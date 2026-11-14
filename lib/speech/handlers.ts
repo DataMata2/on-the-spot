@@ -8,7 +8,7 @@ import type { SpeechBudget, SpeechKind } from "@/lib/speech-budget";
 import { sttCredits, STT_MAX_BYTES, STT_MAX_SECONDS, ttsCredits, type SpeechConfig } from "./config";
 import type { CreditGuard, CreditHold } from "./credits";
 import { elevenStt, elevenTts, type FetchLike } from "./elevenlabs";
-import { PREWARM_MAX_CHARS, prewarmTexts } from "./prewarm";
+import { isPrewarmSet, PREWARM_MAX_CHARS, prewarmTexts } from "./prewarm";
 import { checkTtsText, type TtsSigner } from "./tts-allow";
 import { ttsCacheKey, type TtsCache } from "./tts-cache";
 
@@ -254,8 +254,9 @@ function secretMatches(given: string | null, secret: string): boolean {
 
 /**
  * POST /api/speech/prewarm (header `authorization: Bearer $TTS_PREWARM_SECRET`; 404 when the secret is unset).
- * `?dryRun=1` lists the texts and their character total without calling ElevenLabs. Refuses (400) when the texts
- * add up to more than PREWARM_MAX_CHARS. Already cached texts cost nothing.
+ * `?dryRun=1` lists the texts and their character total without calling ElevenLabs. `?set=roles` does the drill 1
+ * role banks instead of the core set (see prewarm.ts). Refuses (400) when the set's texts add up to more than
+ * PREWARM_MAX_CHARS. Already cached texts cost nothing.
  */
 export function prewarmHandler(deps: SpeechDeps) {
   const generate = ttsGenerator(deps);
@@ -265,7 +266,9 @@ export function prewarmHandler(deps: SpeechDeps) {
     const auth = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
     if (!secretMatches(auth, secret)) return new Response("Not found", { status: 404 });
 
-    const texts = prewarmTexts();
+    const setParam = new URL(request.url).searchParams.get("set");
+    if (setParam !== null && !isPrewarmSet(setParam)) return Response.json({ error: "unknown set" }, { status: 400, headers: NO_STORE });
+    const texts = prewarmTexts(setParam ?? "core");
     const totalChars = texts.reduce((n, t) => n + t.length, 0);
     const { voiceId, ttsModel, ttsFormat } = deps.config;
     const estCredits = ttsCredits(ttsModel, totalChars);

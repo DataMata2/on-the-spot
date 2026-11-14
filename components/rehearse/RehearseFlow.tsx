@@ -8,6 +8,7 @@ import { Drill1Flow, type DrillQueueItem } from "@/components/drill/Drill1Flow";
 import { Blob, PaperCard, ScreenField } from "@/components/kit";
 import { buttonClasses } from "@/components/kit/Button";
 import { Paywall } from "@/components/paywall";
+import { loadRole, roleFields } from "@/lib/progress/role";
 import { EXAMPLE_AGENDA, MAX_AGENDA_CHARS, MIN_AGENDA_CHARS, REHEARSE_COUNT } from "@/lib/rehearse/questions";
 
 type Stage = { k: "input"; error?: string } | { k: "generating" } | { k: "drill"; items: DrillQueueItem[]; run: number } | { k: "paywall"; reason: string };
@@ -47,7 +48,7 @@ export function RehearseFlow() {
       res = await fetch("/api/rehearse/questions", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ agenda: text }),
+        body: JSON.stringify({ agenda: text, ...roleFields(loadRole()) }),
         signal: ctrl.signal,
       });
       body = await res.json().catch(() => ({}));

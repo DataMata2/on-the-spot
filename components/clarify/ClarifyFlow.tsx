@@ -10,6 +10,7 @@ import { Paywall } from "@/components/paywall";
 import { AnswerCapture, MicExplainer, SLOW_RATE, TranscriptEditor, useSpeechToText, useTTS, type AnswerMode, type CapturedAnswer } from "@/components/voice";
 import type { PublicScenario } from "@/lib/drill2/engine";
 import type { Grade } from "@/lib/drill2/types";
+import { loadRole, roleFields } from "@/lib/progress/role";
 import { addResult } from "@/lib/progress/store";
 import { ResultCard } from "./ResultCard";
 
@@ -88,7 +89,7 @@ export function ClarifyFlow() {
     setPhase({ k: "starting" });
     let r: Awaited<ReturnType<typeof post<{ sessionId: string; scenario: PublicScenario; transferFrom: string | null; progress: Progress }>>>;
     try {
-      r = await post("/api/drill2/start", {});
+      r = await post("/api/drill2/start", roleFields(loadRole()));
     } catch {
       setPhase({ k: "error", message: "We couldn't reach the server. Check your connection and try again.", retry: "start" });
       return;

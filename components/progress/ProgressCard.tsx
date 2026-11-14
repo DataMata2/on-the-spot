@@ -1,6 +1,6 @@
 "use client";
 // The progress card (the return mechanic): today's drills, independent vs with help, a 7-day streak strip,
-// tomorrow's drill, free drills left, drill 2, and Pro. Results come from localStorage (lib/progress/store);
+// tomorrow's drill, free drills left, the role the questions are for (with "change"), drill 2, and Pro. Results come from localStorage (lib/progress/store);
 // the free count comes from the server (GET /api/drill1/usage).
 
 import Link from "next/link";
@@ -8,23 +8,29 @@ import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Blob, Button } from "@/components/kit";
 import { Paywall } from "@/components/paywall";
 import { localDay, TYPE_LABELS, TYPE_HINTS } from "@/lib/drill1/questions";
+import { roleLabel } from "@/lib/drill1/roles";
+import { loadRole, ROLE_EVENT, ROLE_KEY } from "@/lib/progress/role";
 import { loadResults, PROGRESS_EVENT, STORAGE_KEY, summarize } from "@/lib/progress/store";
 
 function subscribe(cb: () => void) {
   window.addEventListener(PROGRESS_EVENT, cb);
+  window.addEventListener(ROLE_EVENT, cb);
   window.addEventListener("storage", cb);
   return () => {
     window.removeEventListener(PROGRESS_EVENT, cb);
+    window.removeEventListener(ROLE_EVENT, cb);
     window.removeEventListener("storage", cb);
   };
 }
-function rawSnapshot(): string {
+function readKey(key: string): string {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) ?? "";
+    return window.localStorage.getItem(key) ?? "";
   } catch {
     return "";
   }
 }
+const rawSnapshot = () => readKey(STORAGE_KEY);
+const roleSnapshot = () => readKey(ROLE_KEY);
 // Today's date, client only (no Date during the server render).
 const subscribeNoop = () => () => {};
 const readToday = () => localDay(new Date());
@@ -39,6 +45,8 @@ interface UsageBody {
 export function ProgressCard() {
   const raw = useSyncExternalStore(subscribe, rawSnapshot, () => null);
   const today = useSyncExternalStore(subscribeNoop, readToday, () => null);
+  const roleRaw = useSyncExternalStore(subscribe, roleSnapshot, () => "");
+  const role = useMemo(() => (roleRaw ? loadRole() : null), [roleRaw]);
   const [usage, setUsage] = useState<UsageBody | null>(null);
 
   useEffect(() => {
@@ -147,6 +155,14 @@ export function ProgressCard() {
           <h2 className="type-label text-ink-2">Tomorrow&apos;s drill</h2>
           <p className="type-display mt-2 text-[24px] leading-[1.1] text-ink">Cold question: {TYPE_LABELS[summary.tomorrowType].toLowerCase()}</p>
           <p className="mt-2 text-base text-ink-2">{TYPE_HINTS[summary.tomorrowType]}</p>
+          <p className="mt-4 flex flex-wrap items-center gap-x-3 text-[0.9375rem] text-ink">
+            <span>
+              <span className="font-semibold">Questions for:</span> {role ? roleLabel(role) : "not picked yet"}
+            </span>
+            <Link href="/drill?role=pick" className="inline-flex min-h-11 items-center font-semibold underline decoration-1 underline-offset-4 hover:no-underline">
+              {role ? "change" : "pick your role"}
+            </Link>
+          </p>
         </section>
 
         <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">

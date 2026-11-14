@@ -3,7 +3,7 @@ import { GuardError, guardResponse, readJsonBody } from "@/lib/ai-guard";
 import { attempts, FEEDBACK_PER_ATTEMPT } from "@/lib/drill1/attempts";
 import { MAX_TRANSCRIPT_CHARS, MIN_WORDS, runChecks } from "@/lib/drill1/checks";
 import { buildFeedback, FEEDBACK_SCHEMA, FEEDBACK_SYSTEM, feedbackUserMessage, validateAi, type AiFeedback, type ValidatedAi } from "@/lib/drill1/feedback";
-import { getQuestion } from "@/lib/drill1/questions";
+import { getAnyQuestion } from "@/lib/drill1/roles";
 import { getGuestId } from "@/lib/guest";
 import { takeAiBudget } from "@/lib/limits";
 
@@ -31,8 +31,8 @@ export async function POST(request: Request) {
     if (!guestId) return errorJson(400, "Start a drill first.", "no_attempt");
     const attempt = attempts.get(body.attemptId, guestId);
     if (!attempt || attempt.questionId !== body.questionId) return errorJson(400, "This question has expired. Start a new one.", "no_attempt");
-    // A rehearse attempt carries its own server-generated question; otherwise it comes from the bank.
-    const question = attempt.custom ?? getQuestion(attempt.questionId);
+    // A rehearse or "other" role attempt carries its own server-generated question; otherwise it comes from a bank.
+    const question = attempt.custom ?? getAnyQuestion(attempt.questionId);
     if (!question) return errorJson(400, "Unknown question.", "no_attempt");
 
     const raw = clean(body.rawTranscript);

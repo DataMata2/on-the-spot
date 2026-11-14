@@ -1,6 +1,6 @@
 "use client";
 // Drill 1 "Cold question", as a state machine:
-//   intro (mic explainer) → starting → question (read aloud) → think (5 s) → answer (push-to-talk, max 45 s, or
+//   [role picker, when no role is saved or /drill?role=pick] → intro (mic explainer) → starting → question (read aloud) → think (5 s) → answer (push-to-talk, max 45 s, or
 //   typed) → review (editable transcript; voice only) → grading → feedback → "Try again on a new question" → …
 // A start is server-issued (POST /api/drill1/start) and counts against the free limit; over it, the paywall shows.
 //
@@ -15,15 +15,18 @@
 
 import { errorMessage } from "@/lib/client-error";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Blob, Button, cx, Notice, PaperCard, ScreenField, type FieldName } from "@/components/kit";
 import { Paywall } from "@/components/paywall";
 import { AnswerCapture, MicExplainer, SLOW_RATE, ThinkTimer, TranscriptEditor, useSpeechToText, useTTS, type AnswerMode, type CapturedAnswer } from "@/components/voice";
 import { MAX_TRANSCRIPT_CHARS } from "@/lib/drill1/checks";
 import type { Drill1Feedback } from "@/lib/drill1/feedback";
 import { TYPE_HINTS, TYPE_LABELS, type ColdQuestion, type QuestionType } from "@/lib/drill1/questions";
+import type { Role } from "@/lib/drill1/roles";
+import { loadRole, ROLE_EVENT, ROLE_KEY, roleFields, saveRole } from "@/lib/progress/role";
 import { addResult, type HelpMark } from "@/lib/progress/store";
 import { FeedbackCard } from "./FeedbackCard";
+import { RolePicker } from "./RolePicker";
 
 type Phase =
   | { k: "intro" }
@@ -44,6 +47,26 @@ interface Usage {
 }
 
 const MODE_KEY = "ots_answer_mode";
+
+// The saved role's raw storage value (a stable snapshot); undefined during SSR and hydration.
+function subscribeRole(cb: () => void) {
+  window.addEventListener(ROLE_EVENT, cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    window.removeEventListener(ROLE_EVENT, cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+function readRoleRaw(): string {
+  try {
+    return window.localStorage.getItem(ROLE_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+/** /drill?role=pick (the progress card's "change" link) reopens the picker. */
+const readWantsPick = () => new URLSearchParams(window.location.search).get("role") === "pick";
+const noopSubscribe = () => () => {};
 
 function readMode(): AnswerMode | null {
   try {
@@ -94,6 +117,12 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   const [strongerOpen, setStrongerOpen] = useState(false);
   const [carriedHelp, setCarriedHelp] = useState(false);
   const [done, setDone] = useState(0);
+  const roleRaw = useSyncExternalStore(subscribeRole, readRoleRaw, () => undefined);
+  const wantsPick = useSyncExternalStore(noopSubscribe, readWantsPick, () => false);
+  // The role picked on this visit (also for when storage is unavailable, e.g. a private window: the drill still
+  // uses it). The ref mirrors it for startQuestion.
+  const [pickedNow, setPickedNow] = useState<Role | null>(null);
+  const pickedRole = useRef<Role | null>(null);
 
   const seenRef = useRef<string[]>([]);
   const queueIdx = useRef(0);
@@ -125,12 +154,12 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
       } else {
         setPhase({ k: "starting" });
         let res: Response;
-        let body: { question?: ColdQuestion; attemptId?: string; usage?: Usage; pro?: boolean; error?: string; code?: string };
+        let body: { question?: ColdQuestion; attemptId?: string; ttsToken?: string; usage?: Usage; pro?: boolean; error?: string; code?: string };
         try {
           res = await fetch("/api/drill1/start", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ type, excludeIds: seenRef.current }),
+            body: JSON.stringify({ type, excludeIds: seenRef.current, ...roleFields(loadRole() ?? pickedRole.current) }),
           });
           body = await res.json().catch(() => ({}));
         } catch {
@@ -150,6 +179,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
         }
         q = body.question;
         issuedAttempt = body.attemptId;
+        issuedToken = typeof body.ttsToken === "string" ? body.ttsToken : undefined;
       }
       seenRef.current = [...seenRef.current, q.id];
       setQuestion(q);
@@ -287,6 +317,26 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   // feedback on cobalt, the paywall on lemon. In queue mode (/rehearse) the flow paints no field of its own: it
   // inherits the page's field (every colour below is field-aware).
   const inherit = Boolean(queue);
+
+  // The role picker: before the intro, when no role is saved (or the progress card asked to change it). Never in
+  // queue mode. Until storage is read (SSR, hydration), an empty night field: the same field the intro paints.
+  if (!queue && phase.k === "intro") {
+    if (roleRaw === undefined) return <DrillField inherit={false} field="night" spotlight>{null}</DrillField>;
+    const saved = (roleRaw ? loadRole() : null) ?? pickedNow;
+    if (!saved || (wantsPick && !pickedNow)) {
+      const pick = (role: Role) => {
+        pickedRole.current = role;
+        saveRole(role);
+        setPickedNow(role);
+        if (wantsPick) window.history.replaceState(null, "", window.location.pathname);
+      };
+      return (
+        <DrillField inherit={false} field="night" spotlight>
+          <RolePicker onPick={pick} current={saved} />
+        </DrillField>
+      );
+    }
+  }
 
   if (phase.k === "intro") {
     return (

@@ -1,6 +1,7 @@
 import { getAnthropic, MODEL } from "@/lib/ai";
 import { GuardError, guardResponse, readJsonBody } from "@/lib/ai-guard";
 import { attempts } from "@/lib/drill1/attempts";
+import { parseRole, roleLabel } from "@/lib/drill1/roles";
 import { getOrCreateGuestId } from "@/lib/guest";
 import { takeAiBudget } from "@/lib/limits";
 import { isProRequest } from "@/lib/pro";
@@ -21,7 +22,8 @@ const FALLBACK = { betas: ["server-side-fallback-2026-07-01"], fallbacks: "defau
 const errorJson = (status: number, error: string, code?: string) => Response.json({ error, code }, { status, headers: NO_STORE });
 
 /**
- * POST /api/rehearse/questions `{ agenda }` → `{ items: [{ question, attemptId, ttsToken }] }` (Pro only; free → 402
+ * POST /api/rehearse/questions `{ agenda, role?, roleText? }` (role as for POST /api/drill1/start: extra context for
+ * the questions; invalid or "general" = none) → `{ items: [{ question, attemptId, ttsToken }] }` (Pro only; free → 402
  * `pro_required`). Claude writes the cold questions for this meeting; each one gets a server-issued drill 1 attempt
  * that stores the question, so POST /api/drill1/feedback grades it without trusting question text from the client.
  * Rehearse questions don't count against the free daily drill limit (Pro is unlimited anyway).
@@ -38,6 +40,9 @@ export async function POST(request: Request) {
     if (agenda.length < MIN_AGENDA_CHARS) return errorJson(400, "Paste a bit more about the meeting: the agenda, who's there, what's being decided.", "agenda_short");
     if (agenda.length > MAX_AGENDA_CHARS) return errorJson(413, `Keep it under ${MAX_AGENDA_CHARS} characters.`, "agenda_long");
 
+    const role = parseRole(body.role, body.roleText);
+    const roleContext = role && role.id !== "general" ? roleLabel(role) : null;
+
     const budget = takeAiBudget(request, guestId);
     if (!budget.ok) return errorJson(budget.status, budget.error, budget.code);
 
@@ -49,7 +54,7 @@ export async function POST(request: Request) {
           max_tokens: 1200,
           output_config: { effort: "low", format: { type: "json_schema", schema: REHEARSE_SCHEMA } },
           system: REHEARSE_SYSTEM,
-          messages: [{ role: "user", content: rehearseUserMessage(agenda) }],
+          messages: [{ role: "user", content: rehearseUserMessage(agenda, roleContext) }],
           ...FALLBACK,
         },
         { signal: request.signal },

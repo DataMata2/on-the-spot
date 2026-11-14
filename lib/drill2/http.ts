@@ -8,7 +8,9 @@ import { isProRequest } from "@/lib/pro";
 import { ttsToken } from "@/lib/speech/server";
 import { characterReply, extract, offTopicReply } from "./ai";
 import { changeBeforeConfirm, gradeConfirmation, publicScenario, revealFor, SUGGEST_CONFIRM_REPLY, useHint } from "./engine";
-import { getScenario, pickScenario } from "./scenarios";
+import { isRoleId } from "@/lib/drill1/roles";
+import { pickScenarioForRole } from "./role-scenario";
+import { getScenario } from "./scenarios";
 import { drill2Sessions, MAX_TURNS, MAX_UTTERANCE_CHARS, type Drill2Session } from "./sessions";
 import type { Grade } from "./types";
 
@@ -82,20 +84,23 @@ function progressOf(session: Drill2Session) {
 }
 
 /**
- * POST /api/drill2/start `{}` → `{ sessionId, scenario (public), progress, pro }`. The server picks the scenario
- * (the next one this guest hasn't done). Free guests get one try ever: then 402 `{ code: "drill2_pro" }`.
+ * POST /api/drill2/start `{ role? }` → `{ sessionId, scenario (public), progress, pro }`. The server picks the scenario
+ * (the next one this guest hasn't done; a guest's first one follows the drill 1 role, see role-scenario.ts). Free guests get one try ever: then 402 `{ code: "drill2_pro" }`.
  */
 export function startHandler() {
   return (request: Request) =>
     wrap("POST /api/drill2/start", async () => {
-      await readJsonBody(request, BODY_LIMIT).catch(() => ({}));
+      const body: Record<string, unknown> = await readJsonBody(request, BODY_LIMIT).catch(() => ({}));
+      const role = isRoleId(body.role) ? body.role : null;
       const guestId = await getOrCreateGuestId();
       const pro = await isProRequest();
       const lim = takeDrillStart(guestId, "drill2", pro);
       if (!lim.ok) return fail(lim.status, lim.error, lim.code);
-      const scenario = pickScenario(drill2Sessions.done(guestId));
+      const done = drill2Sessions.done(guestId);
+      const scenario = pickScenarioForRole(role, done);
       const session = drill2Sessions.create(guestId, scenario);
-      const transferFrom = scenario.transferOf ? getScenario(scenario.transferOf)?.title ?? null : null;
+      // "Same skill as …" only when the guest has done that scenario (a role can make a transfer scenario the first).
+      const transferFrom = scenario.transferOf && done.includes(scenario.transferOf) ? getScenario(scenario.transferOf)?.title ?? null : null;
       return json({ sessionId: session.id, scenario: publicScenario(scenario), transferFrom, progress: progressOf(session), pro });
     });
 }

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Pre-generate the jury's TTS audio so their runs cost no credits. Dry run first (prints the texts and the character
-# total; the server refuses more than 4,000 characters), then generates what isn't cached yet.
+# total; the server refuses more than 4,000 characters per set), then generates what isn't cached yet. Two sets: the
+# core texts (drill 1 general bank, drill 2), then the drill 1 role banks (?set=roles).
 # Usage: TTS_PREWARM_SECRET=... scripts/prewarm-tts.sh [base-url] [--yes]     (default https://speak.incode.kz)
 set -euo pipefail
 
@@ -24,10 +25,12 @@ PY
 )"
 }
 
-echo "Dry run against $BASE:"
-call "?dryRun=1" | summary
-if [ "${2:-}" != "--yes" ]; then
-  read -r -p "Generate now? [y/N] " ok
-  [ "$ok" = "y" ] || { echo "Stopped."; exit 0; }
-fi
-call "" | summary
+for SET in core roles; do
+  echo "Dry run against $BASE (set: $SET):"
+  call "?dryRun=1&set=$SET" | summary
+  if [ "${2:-}" != "--yes" ]; then
+    read -r -p "Generate set $SET now? [y/N] " ok
+    [ "$ok" = "y" ] || { echo "Skipped $SET."; continue; }
+  fi
+  call "?set=$SET" | summary
+done

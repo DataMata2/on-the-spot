@@ -53,5 +53,7 @@ describe("agenda input", () => {
   it("the example agenda fits the cap and is wrapped as data", () => {
     expect(EXAMPLE_AGENDA.length).toBeLessThan(MAX_AGENDA_CHARS);
     expect(rehearseUserMessage("a")).toContain("<agenda>\na\n</agenda>");
+    expect(rehearseUserMessage("a")).not.toContain("<role>");
+    expect(rehearseUserMessage("a", "Product manager")).toContain("<role>Product manager</role>");
   });
 });

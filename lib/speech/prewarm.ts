@@ -6,7 +6,11 @@
 // without it: the verbatim fact lines (the character model's fallback, and what is said when the AI budget is out),
 // the off-topic replies, the "sounds like you've got it" reply, a condition change appended to the turn it fires on,
 // and the confirm route's "the plan changed, say it back again" reply.
+// The texts come in two sets, each under the same PREWARM_MAX_CHARS refusal limit: "core" (everything above, as
+// before) and "roles" (the drill 1 role banks: each role's first question, then the rest, role by role). The route
+// takes `?set=roles`; scripts/prewarm-tts.sh runs both.
 import { JURY_ORDER, QUESTIONS, getQuestion } from "@/lib/drill1/questions";
+import { BANK_ROLES, ROLE_BANKS } from "@/lib/drill1/roles";
 import { changeBeforeConfirm, createState, offTopicReply, revealFor, SUGGEST_CONFIRM_REPLY } from "@/lib/drill2/engine";
 import { pickScenario, SCENARIOS } from "@/lib/drill2/scenarios";
 import type { DrillState, ExtractedTurn, Scenario } from "@/lib/drill2/types";
@@ -47,7 +51,22 @@ export function scenarioTexts(s: Scenario): string[] {
   return texts;
 }
 
-export function prewarmTexts(): string[] {
+export type PrewarmSet = "core" | "roles";
+export const PREWARM_SETS: readonly PrewarmSet[] = ["core", "roles"];
+
+export function isPrewarmSet(v: unknown): v is PrewarmSet {
+  return typeof v === "string" && (PREWARM_SETS as readonly string[]).includes(v);
+}
+
+/** The drill 1 role banks: the first question of every role (what a fresh user hears first), then the rest. */
+export function roleTexts(): string[] {
+  const texts = BANK_ROLES.map((r) => ROLE_BANKS[r][0].text);
+  for (const r of BANK_ROLES) texts.push(...ROLE_BANKS[r].map((q) => q.text));
+  return [...new Set(texts.map(normalizeTtsText).filter(Boolean))];
+}
+
+export function prewarmTexts(set: PrewarmSet = "core"): string[] {
+  if (set === "roles") return roleTexts();
   const first = pickScenario([]);
   const texts: string[] = [];
   for (const id of JURY_ORDER) {

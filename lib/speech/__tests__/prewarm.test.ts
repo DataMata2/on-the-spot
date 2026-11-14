@@ -67,4 +67,18 @@ describe("prewarm list", () => {
     expect(tts.status).toBe(200);
     expect(fetchImpl.mock.calls.length).toBe(calls);
   });
+
+  it("?set=roles pre-generates the drill 1 role banks; an unknown set is refused", async () => {
+    const fetchImpl = vi.fn(async () => mp3());
+    const { deps } = makeDeps({ fetchImpl, prewarmSecret: "s3cret", tts: 10_000, balance: 100_000 });
+    const req = (q: string) => new Request(`http://localhost/api/speech/prewarm${q}`, { method: "POST", headers: { authorization: "Bearer s3cret" } });
+    const handler = prewarmHandler(deps);
+    expect((await handler(req("?set=nope"))).status).toBe(400);
+    const res = await handler(req("?set=roles"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { totalChars: number };
+    const roles = prewarmTexts("roles");
+    expect(body.totalChars).toBe(roles.reduce((n, t) => n + t.length, 0));
+    expect(fetchImpl.mock.calls.length).toBe(roles.length);
+  });
 });

@@ -1,9 +1,10 @@
 // Which texts POST /api/speech/tts may speak: only texts the server can vouch for, so the route never becomes a
-// free TTS proxy. Static texts (the drill 1 question bank, drill 2 opening lines) are allowed as they are; texts the
-// server produces at runtime (drill 2 manager replies, rehearse questions) carry an HMAC token the server issues
+// free TTS proxy. Static texts (the drill 1 question banks: general and per role; drill 2 opening lines) are allowed as they are; texts the
+// server produces at runtime (drill 2 manager replies, rehearse and "other" role questions) carry an HMAC token the server issues
 // next to them. Pure (node:crypto only); unit-tested.
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { QUESTIONS } from "@/lib/drill1/questions";
+import { ROLE_QUESTIONS } from "@/lib/drill1/roles";
 import { SCENARIOS } from "@/lib/drill2/scenarios";
 import { TTS_MAX_CHARS } from "./config";
 
@@ -14,7 +15,7 @@ export function normalizeTtsText(value: unknown): string {
 
 /** Texts that are always allowed: they are in the code. */
 export function staticTtsTexts(): Set<string> {
-  return new Set([...QUESTIONS.map((q) => q.text), ...SCENARIOS.map((s) => s.managerLine)].map(normalizeTtsText));
+  return new Set([...QUESTIONS.map((q) => q.text), ...ROLE_QUESTIONS.map((q) => q.text), ...SCENARIOS.map((s) => s.managerLine)].map(normalizeTtsText));
 }
 
 export class TtsSigner {
