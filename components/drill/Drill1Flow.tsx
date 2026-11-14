@@ -15,7 +15,8 @@
 
 import { errorMessage } from "@/lib/client-error";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Blob, Button, cx, Notice, PaperCard, ScreenField, type FieldName } from "@/components/kit";
 import { Paywall } from "@/components/paywall";
 import { AnswerCapture, MicExplainer, SLOW_RATE, ThinkTimer, TranscriptEditor, useSpeechToText, useTTS, type AnswerMode, type CapturedAnswer } from "@/components/voice";
 import { MAX_TRANSCRIPT_CHARS } from "@/lib/drill1/checks";
@@ -281,232 +282,354 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   const freeLeft = usage && !pro ? Math.max(0, usage.freePerDay - usage.usedToday) : null;
 
   // ---------- render ----------
+  // Screen fields: intro / question / think / answer on night with the spotlight (it turns tomato while recording),
+  // feedback on cobalt, the paywall on lemon. In queue mode (/rehearse) the flow paints no field of its own: it
+  // inherits the page's field (every colour below is field-aware).
+  const inherit = Boolean(queue);
+
   if (phase.k === "intro") {
     return (
-      <section className="flex flex-col gap-6">
-        <div className="flex flex-col gap-3">
-          {queue ? (
-            <>
-              <p className="text-sm font-semibold tracking-wide text-accent uppercase">Rehearse · {queue.length} questions from your meeting</p>
-              <h2 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">Now they turn to you.</h2>
-              <p className="text-base text-ink-2">
-                One question at a time, read aloud with no warning. Take 5 seconds to think, then answer out loud, up to 45 seconds.
-                Use your real facts: this is the meeting you&apos;ll actually be in.
-              </p>
-            </>
-          ) : (
-            <>
-              <p className="text-sm font-semibold tracking-wide text-accent uppercase">Drill 1 · Cold question</p>
-              <h1 className="text-2xl font-bold tracking-tight text-ink sm:text-3xl">Someone in the meeting turns to you.</h1>
-              <p className="text-base text-ink-2">
-                You&apos;ll hear a real work question with no warning. Take 5 seconds to think, then answer out loud, up to 45 seconds.
-                We check one thing first: did your first sentence answer the question?
-              </p>
-            </>
-          )}
-        </div>
-        <ol className="grid gap-3 text-sm text-ink-2 sm:grid-cols-3">
-          {["Hear the question", "5 seconds to think", "Answer, then see what landed"].map((s, i) => (
-            <li key={s} className="flex items-center gap-3 rounded-md border border-line bg-surface px-4 py-3">
-              <span className="grid size-6 shrink-0 place-items-center rounded-full bg-accent-soft text-xs font-bold text-accent-ink">{i + 1}</span>
-              {s}
-            </li>
-          ))}
-        </ol>
-        {stt.supported ? (
-          <div className="flex flex-col gap-4">
-            <MicExplainer />
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button type="button" onClick={() => begin(false)} className="h-13 rounded-md bg-accent px-6 text-base font-semibold text-white hover:bg-accent-hover active:bg-accent-press">
-                Start with the mic
-              </button>
-              <button type="button" onClick={() => begin(true)} className="h-11 rounded-md px-3 text-sm font-semibold text-accent hover:bg-accent-soft">
-                Type instead
-              </button>
+      <DrillField inherit={inherit} field="night" spotlight>
+        <section className="flex flex-1 flex-col gap-6 lg:gap-10">
+          <div className="relative flex flex-col gap-3 lg:gap-4">
+            <Blob state="happy" size="clamp(52px,9vw,120px)" bob className="absolute top-0 right-0 max-sm:hidden" />
+            {queue ? (
+              <>
+                <p className="type-label flex items-center gap-2 text-field-mark">
+                  <Blob state="happy" size={28} className="sm:hidden" />
+                  Rehearse · {queue.length} questions from your meeting
+                </p>
+                <h2 className="type-display max-w-[14ch] text-[clamp(2.5rem,11vw,5.5rem)] leading-[0.98] text-field-fg">Now they turn to you.</h2>
+                <p className="max-w-[52ch] text-base text-field-muted sm:text-lg">
+                  One question at a time, read aloud with no warning. Take 5 seconds to think, then answer out loud, up to 45 seconds.
+                  Use your real facts: this is the meeting you&apos;ll actually be in.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="type-label flex items-center gap-2 text-field-mark">
+                  <Blob state="happy" size={28} className="sm:hidden" />
+                  Drill 1 · Cold question
+                </p>
+                <h1 className="type-display max-w-[14ch] text-[clamp(2.5rem,11vw,5.5rem)] leading-[0.98] text-field-fg">Someone in the meeting turns to you.</h1>
+                <p className="max-w-[52ch] text-base text-field-muted sm:text-lg">
+                  You&apos;ll hear a real work question with no warning. Take 5 seconds to think, then answer out loud, up to 45 seconds.
+                  We check one thing first: did your first sentence answer the question?
+                </p>
+              </>
+            )}
+          </div>
+          <ol className="grid gap-2 sm:grid-cols-3 sm:gap-3">
+            {["Hear the question", "5 seconds to think", "Answer, then see what landed"].map((s, i) => (
+              <li key={s} className="flex min-h-12 items-center gap-3 rounded-chip bg-field-tint px-4 py-2 font-semibold text-field-fg sm:min-h-16 sm:gap-4 sm:px-5">
+                <span className="type-display w-5 shrink-0 text-[1.5rem] leading-none text-field-mark sm:w-6 sm:text-[2rem]">{i + 1}</span>
+                {s}
+              </li>
+            ))}
+          </ol>
+          {stt.supported ? (
+            <div className="flex flex-col gap-5">
+              <MicExplainer className="max-w-[60ch]" />
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+                <Button size="lg" onClick={() => begin(false)}>
+                  <MicGlyph />
+                  Start with the mic
+                </Button>
+                <Button variant="ghost" size="lg" onClick={() => begin(true)} className="underline decoration-1 underline-offset-4 sm:no-underline">
+                  Type instead
+                </Button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <p className="rounded-md bg-sunken px-4 py-3 text-sm text-ink-2">
-              This browser can&apos;t turn speech into text (Chrome, Edge and Safari can). You can still do the drill: type your answer the way you&apos;d say it.
-            </p>
-            <button type="button" onClick={() => begin(true)} className="h-13 w-fit rounded-md bg-accent px-6 text-base font-semibold text-white hover:bg-accent-hover">
-              Start, typing my answer
-            </button>
-          </div>
-        )}
-      </section>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <p className="max-w-[60ch] rounded-chip bg-field-tint px-5 py-4 text-sm text-field-fg">
+                This browser can&apos;t turn speech into text (Chrome, Edge and Safari can). You can still do the drill: type your answer the way you&apos;d say it.
+              </p>
+              <Button size="lg" onClick={() => begin(true)} className="sm:w-fit">
+                Start, typing my answer
+              </Button>
+            </div>
+          )}
+        </section>
+      </DrillField>
     );
   }
 
   if (phase.k === "limit") {
     return (
-      <section className="flex flex-col items-center gap-6">
-        <Paywall reason={phase.message} />
-        <Link href="/progress" className="inline-flex items-center max-sm:min-h-11 text-sm font-semibold text-accent hover:underline">See your progress</Link>
-      </section>
+      <DrillField inherit={inherit} field="lemon">
+        <section className="flex flex-col items-center gap-6">
+          <Paywall reason={phase.message} />
+          <Link href="/progress" className="inline-flex min-h-11 items-center px-2 text-[0.9375rem] font-semibold text-field-fg underline underline-offset-4">See your progress</Link>
+        </section>
+      </DrillField>
     );
   }
 
   if (phase.k === "finished") {
     return (
-      <section className="flex flex-col items-start gap-4 rounded-lg border border-line bg-surface p-5 sm:p-6">
-        <h2 className="text-xl font-bold text-ink">That&apos;s the whole meeting.</h2>
-        <p className="text-base text-ink-2">
-          You answered {done} of {queue?.length ?? done} questions out loud. Before the real one, say your first sentence for each topic once more.
-        </p>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          {onExit && (
-            <button type="button" onClick={onExit} className="h-12 rounded-md bg-accent px-6 font-semibold text-white hover:bg-accent-hover">
-              Rehearse another meeting
-            </button>
-          )}
-          <Link href="/progress" className="flex h-12 items-center justify-center rounded-md border border-line-strong bg-surface px-6 font-semibold text-ink hover:bg-paper">
-            See your progress
-          </Link>
-        </div>
-      </section>
+      <DrillField inherit={inherit} field="night" spotlight>
+        <PaperCard as="section" sticker="sm" className="flex flex-col items-start gap-4 border-2 border-ink">
+          <Blob state="proud" size={56} />
+          <h2 className="type-display text-[clamp(2rem,8vw,3rem)] leading-[1.02]">That&apos;s the whole meeting.</h2>
+          <p className="text-base text-ink-2">
+            You answered {done} of {queue?.length ?? done} questions out loud. Before the real one, say your first sentence for each topic once more.
+          </p>
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+            {onExit && (
+              <Button size="lg" onClick={onExit}>
+                Rehearse another meeting
+              </Button>
+            )}
+            <Button href="/progress" variant="secondary" size="lg">
+              See your progress
+            </Button>
+          </div>
+        </PaperCard>
+      </DrillField>
     );
   }
 
   if (phase.k === "starting" || !question) {
     if (phase.k === "error") {
-      return <ErrorBox message={phase.message} onRetry={() => void startQuestion(null, false, preferTyping)} retryLabel="Start a question" />;
+      return (
+        <DrillField inherit={inherit} field="night" spotlight>
+          <ErrorBox message={phase.message} onRetry={() => void startQuestion(null, false, preferTyping)} retryLabel="Start a question" />
+        </DrillField>
+      );
     }
-    return <Loading text="Picking a question…" />;
+    return (
+      <DrillField inherit={inherit} field="night" spotlight>
+        <Loading text="Picking a question…" />
+      </DrillField>
+    );
   }
 
   const showAsk = phase.k === "question" || phase.k === "think" || phase.k === "answer";
+  const recording = phase.k === "answer" && stt.listening;
+  const isFeedback = phase.k === "feedback";
+  // The question is the hero while it is read and thought about, smaller while answering, a reminder afterwards.
+  const qSize = phase.k === "question" || phase.k === "think" ? "big" : phase.k === "answer" && !recording ? "mid" : "small";
+  const centred = phase.k === "question" || phase.k === "think" || phase.k === "answer";
 
   return (
-    <section className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-3">
-        <span className="font-semibold tracking-wide text-accent uppercase">
-          {queue ? `Question ${queuePos} of ${queue.length} · ` : ""}
-          {TYPE_LABELS[question.type]}
-        </span>
-        <span>
-          {[phase.k !== "feedback" ? (help === "independent" ? "Counts as independent" : "Counts as with help") : null, freeLeft !== null ? `${freeLeft} free left today` : null]
-            .filter(Boolean)
-            .join(" · ")}
-        </span>
-      </div>
-
-      {/* The question, as a meeting moment */}
-      <div className="rounded-lg border border-line bg-surface p-5 sm:p-6">
-        <p className="text-sm text-ink-2">{question.context}</p>
-        <p className="mt-2 text-xl leading-snug font-semibold text-ink sm:text-2xl">“{question.text}”</p>
-        {tts.supported && (
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-            <button type="button" className="inline-flex items-center max-sm:min-h-11 font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => void tts.speak(question.text, { token: ttsToken })}>
-              Replay
-            </button>
-            <button type="button" className="inline-flex items-center max-sm:min-h-11 font-semibold text-accent hover:underline disabled:opacity-45 disabled:no-underline" disabled={stt.listening} onClick={() => void tts.speak(question.text, { rate: SLOW_RATE, token: ttsToken })}>
-              Slower
-            </button>
-            {phase.k === "question" && (
-              <button type="button" className="inline-flex items-center max-sm:min-h-11 rounded-md border border-line-strong px-3 font-semibold text-ink-2 hover:bg-sunken" onClick={() => { tts.cancel(); setPhase({ k: "think" }); }}>
-                Skip reading
-              </button>
-            )}
-          </div>
-        )}
-        {showAsk && (
-          <div className="mt-3 text-sm">
-            {hintOpen ? (
-              <p className="rounded-md bg-sunken px-3 py-2 text-ink-2">Hint: {TYPE_HINTS[question.type]}</p>
-            ) : (
-              <button type="button" className="inline-flex items-center max-sm:min-h-11 text-left text-ink-3 hover:underline" onClick={() => setHintOpen(true)}>
-                Show a hint (counts as with help)
-              </button>
-            )}
-          </div>
-        )}
-      </div>
-
-      {phase.k === "question" && <p className="text-center text-sm text-ink-2" aria-live="polite">{tts.speaking ? "Reading the question aloud…" : "Get ready…"}</p>}
-
-      {phase.k === "think" && (
-        <ThinkTimer seconds={5} onDone={() => { tts.cancel(); setPhase({ k: "answer" }); }} skipLabel="I'm ready, answer now" />
-      )}
-
-      {(phase.k === "question" || phase.k === "think") && (
-        <button type="button" onClick={typeNow} className="inline-flex items-center max-sm:min-h-11 self-center text-sm font-semibold text-accent hover:underline">
-          Type instead
-        </button>
-      )}
-
-      {phase.k === "answer" && (
-        <AnswerCapture
-          key={attemptId}
-          stt={stt}
-          preferTyping={preferTyping}
-          onModeChange={onModeChange}
-          onCaptured={onCaptured}
-          notice={phase.notice}
-          maxChars={MAX_TRANSCRIPT_CHARS}
-          submitLabel="Get feedback"
-          initialText={mode === "typed" ? raw : ""}
-          onBeforeStart={tts.cancel}
-        />
-      )}
-
-      {phase.k === "review" && (
-        <div className="flex flex-col gap-4">
-          <TranscriptEditor raw={raw} value={edited} onChange={setEdited} maxLength={MAX_TRANSCRIPT_CHARS} />
-          <div className="flex flex-wrap items-center gap-4">
-            <button type="button" onClick={() => void grade(raw, edited, mode)} disabled={!edited.trim()} className="h-12 rounded-md bg-accent px-6 font-semibold text-white hover:bg-accent-hover disabled:opacity-45">
-              Get feedback
-            </button>
-            <button type="button" onClick={() => { stt.reset(); setPhase({ k: "answer" }); }} className="inline-flex items-center max-sm:min-h-11 text-sm font-semibold text-accent hover:underline">
-              Answer again
-            </button>
-          </div>
+    <DrillField inherit={inherit} field={isFeedback ? "cobalt" : "night"} spotlight={isFeedback ? false : recording ? "rec" : true} wide={isFeedback}>
+      <section className={cx("flex flex-1 flex-col", recording ? "gap-4" : "gap-6")}>
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+          <span className="type-label rounded-pill bg-field-tint px-3 py-1.5 text-[0.6875rem] text-field-mark">
+            {queue ? `Question ${queuePos} of ${queue.length} · ` : ""}
+            {TYPE_LABELS[question.type]}
+          </span>
+          <span className="text-sm text-field-muted">
+            {[phase.k !== "feedback" ? (help === "independent" ? "Counts as independent" : "Counts as with help") : null, freeLeft !== null ? `${freeLeft} free left today` : null]
+              .filter(Boolean)
+              .join(" · ")}
+          </span>
         </div>
-      )}
 
-      {phase.k === "grading" && <Loading text="Reading your answer…" />}
-
-      {phase.k === "error" && (
-        <ErrorBox
-          message={phase.message}
-          retryLabel={phase.retry === "grade" ? "Try again" : queue ? "Go to the next question" : "Start a new question"}
-          onRetry={() => (phase.retry === "grade" ? void grade(raw, edited, mode) : void startQuestion(question.type, false, preferTyping))}
-        />
-      )}
-
-      {phase.k === "feedback" && feedback && (
-        <div className="flex flex-col gap-5">
-          <FeedbackCard feedback={feedback} strongerOpen={strongerOpen} onOpenStronger={() => setStrongerOpen(true)} />
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button type="button" onClick={retry} className="flex h-13 flex-col items-center justify-center rounded-md bg-accent px-6 text-white hover:bg-accent-hover">
-              <span className="text-base font-semibold">
-                {queue ? (queueLast ? "Finish the rehearsal" : `Next question (${queuePos + 1} of ${queue.length})`) : "Try again on a new question"}
-              </span>
-              {!queueLast && (
-                <span className="text-xs opacity-80">
-                  {strongerOpen && (!queue || queue[queuePos]?.question.type === question.type)
-                    ? "Counts as with help: you saw the stronger version"
-                    : "Counts as independent"}
-                </span>
+        {/* The question, as a meeting moment */}
+        <div className={cx("flex flex-col", centred && "lg:items-center lg:text-center", qSize === "big" && "pt-2 lg:pt-10")}>
+          <p className={cx("text-field-muted", qSize === "small" ? "text-sm" : "text-base lg:text-lg")}>{question.context}</p>
+          <p
+            className={cx(
+              "mt-2 text-field-fg",
+              qSize === "big" && "type-display text-trail text-[clamp(2rem,9.6vw,4.75rem)] leading-[1.02]",
+              qSize === "mid" && "type-display text-[clamp(1.625rem,6.6vw,3rem)] leading-[1.05]",
+              qSize === "small" && "type-heading max-w-[36ch] text-xl leading-[1.2] text-field-muted lg:text-[1.5rem]",
+            )}
+          >
+            “{question.text}”
+          </p>
+          {tts.supported && (
+            <div className={cx("mt-4 flex flex-wrap gap-2", centred && "lg:justify-center", qSize === "big" && "lg:mt-6")}>
+              <button type="button" className={TOOL_PILL} disabled={stt.listening} onClick={() => void tts.speak(question.text, { token: ttsToken })}>
+                <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true">
+                  <path d="M3 12a9 9 0 1 0 3-6.7L3 8" />
+                  <path d="M3 3v5h5" />
+                </svg>
+                Replay
+              </button>
+              <button type="button" className={TOOL_PILL} disabled={stt.listening} onClick={() => void tts.speak(question.text, { rate: SLOW_RATE, token: ttsToken })}>
+                Slower
+              </button>
+              {phase.k === "question" && (
+                <button type="button" className={cx(TOOL_BASE, "shadow-[inset_0_0_0_2px_var(--field-line)] hover:bg-field-tint")} onClick={() => { tts.cancel(); setPhase({ k: "think" }); }}>
+                  Skip reading
+                </button>
               )}
-            </button>
-            {done >= 1 && (
-              <Link href="/progress" className="flex h-13 items-center justify-center rounded-md border border-line-strong bg-surface px-6 font-semibold text-ink hover:bg-paper">
-                See your progress
-              </Link>
-            )}
-          </div>
+            </div>
+          )}
+          {showAsk && (
+            <div className={cx("mt-2 text-[0.9375rem]", recording && "[@media(max-height:700px)]:hidden")}>
+              {hintOpen ? (
+                <p className="mt-2 max-w-[60ch] rounded-chip bg-field-tint px-4 py-3 text-left text-field-fg">Hint: {TYPE_HINTS[question.type]}</p>
+              ) : (
+                <button type="button" className="inline-flex min-h-11 items-center px-1 text-left text-field-muted underline decoration-1 underline-offset-4 hover:text-field-fg" onClick={() => setHintOpen(true)}>
+                  Show a hint (counts as with help)
+                </button>
+              )}
+            </div>
+          )}
         </div>
-      )}
-    </section>
+
+        {phase.k === "question" && <p className="mt-auto pt-6 text-center text-[0.9375rem] font-semibold text-field-muted" aria-live="polite">{tts.speaking ? "Reading the question aloud…" : "Get ready…"}</p>}
+
+        {phase.k === "think" && (
+          // The blob sits in the timer's first (reserved) column, beside the dots.
+          <div className="relative flex flex-1 flex-col pt-2 lg:mx-auto lg:w-full lg:max-w-[560px]">
+            <Blob state="thinking" size={44} className="absolute top-0 left-0" />
+            <ThinkTimer seconds={5} onDone={() => { tts.cancel(); setPhase({ k: "answer" }); }} skipLabel="I'm ready, answer now" />
+          </div>
+        )}
+
+        {(phase.k === "question" || phase.k === "think") && (
+          <button type="button" onClick={typeNow} className="-mt-3 inline-flex min-h-11 items-center self-center px-3 text-[0.9375rem] font-semibold text-field-muted underline decoration-1 underline-offset-4 hover:text-field-fg">
+            Type instead
+          </button>
+        )}
+
+        {recording && (
+          // Decorative: the button and its live region already say how long is left. Compact, so the mic does not
+          // move out of thumb reach when recording starts.
+          <div className="flex flex-col items-center gap-3" aria-hidden="true">
+            <p className="type-display text-[clamp(4.5rem,22vw,10rem)] leading-[0.9] [@media(max-height:700px)]:text-[3.5rem] whitespace-nowrap text-field-fg tabular-nums">
+              {clock(stt.elapsedMs)}
+              <span className="ml-1.5 font-mono text-base font-medium tracking-[0.04em] text-field-muted">/ {clock(stt.maxMs)}</span>
+            </p>
+            <div className="flex h-12 items-center gap-1 [@media(max-height:700px)]:hidden">
+              <Blob state="listening" size={36} bob className="mr-3" />
+              {WAVE.map((h, i) => (
+                <i key={i} className={cx("w-[5px] rounded-full bg-tomato motion-safe:animate-wave", i >= 18 && "max-sm:hidden")} style={{ height: h * 0.8, animationDelay: `${-((i * 7) % 10) / 10}s` }} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {phase.k === "answer" && (
+          <AnswerCapture
+            key={attemptId}
+            stt={stt}
+            preferTyping={preferTyping}
+            onModeChange={onModeChange}
+            onCaptured={onCaptured}
+            notice={phase.notice}
+            maxChars={MAX_TRANSCRIPT_CHARS}
+            submitLabel="Get feedback"
+            initialText={mode === "typed" ? raw : ""}
+            onBeforeStart={tts.cancel}
+          />
+        )}
+
+        {phase.k === "review" && (
+          <div className="flex flex-col gap-5">
+            <TranscriptEditor raw={raw} value={edited} onChange={setEdited} maxLength={MAX_TRANSCRIPT_CHARS} />
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+              <Button size="lg" onClick={() => void grade(raw, edited, mode)} disabled={!edited.trim()}>
+                Get feedback
+              </Button>
+              <Button variant="ghost" size="lg" onClick={() => { stt.reset(); setPhase({ k: "answer" }); }} className="underline decoration-1 underline-offset-4 sm:no-underline">
+                Answer again
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {phase.k === "grading" && <Loading text="Reading your answer…" />}
+
+        {phase.k === "error" && (
+          <ErrorBox
+            message={phase.message}
+            retryLabel={phase.retry === "grade" ? "Try again" : queue ? "Go to the next question" : "Start a new question"}
+            onRetry={() => (phase.retry === "grade" ? void grade(raw, edited, mode) : void startQuestion(question.type, false, preferTyping))}
+          />
+        )}
+
+        {phase.k === "feedback" && feedback && (
+          // Desktop: verdict + actions on the left, the paper card on the right (FeedbackCard is a subgrid of this).
+          <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr] lg:gap-x-16 lg:gap-y-10">
+            <FeedbackCard feedback={feedback} strongerOpen={strongerOpen} onOpenStronger={() => setStrongerOpen(true)} />
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:col-start-1 lg:row-start-2 lg:self-start xl:flex-row">
+              <Button variant={inherit ? "primary" : "lemon"} size="lg" onClick={retry} className="min-h-16 flex-col gap-0 px-7 py-2 text-center leading-tight whitespace-normal">
+                <span className="text-[1.0625rem] font-bold">
+                  {queue ? (queueLast ? "Finish the rehearsal" : `Next question (${queuePos + 1} of ${queue.length})`) : "Try again on a new question"}
+                </span>
+                {!queueLast && (
+                  <span className="text-[0.8125rem] font-medium">
+                    {strongerOpen && (!queue || queue[queuePos]?.question.type === question.type)
+                      ? "Counts as with help: you saw the stronger version"
+                      : "Counts as independent"}
+                  </span>
+                )}
+              </Button>
+              {done >= 1 && (
+                <Button href="/progress" variant="secondary" size="lg" className="min-h-[3.25rem]">
+                  See your progress
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+    </DrillField>
+  );
+}
+
+/** The small pills under the question (Replay / Slower / Skip reading). */
+const TOOL_BASE = "inline-flex min-h-11 items-center gap-2 rounded-pill px-4 text-[0.9375rem] font-semibold text-field-fg disabled:opacity-45";
+const TOOL_PILL = cx(TOOL_BASE, "bg-field-tint hover:shadow-[inset_0_0_0_1px_var(--field-line)]");
+
+/** Waveform bar heights while recording (decorative). */
+const WAVE = [18, 30, 44, 26, 56, 38, 60, 34, 48, 22, 52, 40, 58, 30, 46, 20, 42, 28, 50, 24, 36, 16, 44, 30, 54, 22, 40, 18];
+
+/** 12 345 ms → "0:12". */
+function clock(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
+/**
+ * The flow's screen: a full-height ScreenField (it also colours the header), or, in queue mode, a plain column that
+ * inherits the page's field.
+ */
+function DrillField({
+  inherit,
+  field,
+  spotlight = false,
+  wide = false,
+  children,
+}: {
+  inherit: boolean;
+  field: FieldName;
+  spotlight?: boolean | "rec";
+  wide?: boolean;
+  children: ReactNode;
+}) {
+  if (inherit) return <div className="flex flex-1 flex-col">{children}</div>;
+  return (
+    <ScreenField
+      field={field}
+      spotlight={spotlight}
+      className="flex min-h-[calc(100svh-4rem)] flex-1 flex-col pt-4 pb-8 sm:pt-8 lg:min-h-[calc(100svh-5rem)] lg:pb-16"
+      innerClassName="flex flex-1 flex-col"
+    >
+      <div className={cx("mx-auto flex w-full flex-1 flex-col", !wide && "max-w-[980px]")}>{children}</div>
+    </ScreenField>
+  );
+}
+
+function MicGlyph() {
+  return (
+    <svg className="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="9" y="2" width="6" height="12" rx="3" />
+      <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" />
+    </svg>
   );
 }
 
 function Loading({ text }: { text: string }) {
   return (
-    <div className="flex items-center justify-center gap-3 py-10 text-ink-2" role="status">
-      <span className="size-4 animate-spin rounded-full border-2 border-accent border-t-transparent" aria-hidden="true" />
+    <div className="flex items-center justify-center gap-3 py-10 font-semibold text-field-muted" role="status">
+      <span className="size-5 animate-spin rounded-full border-[3px] border-field-mark border-t-transparent" aria-hidden="true" />
       {text}
     </div>
   );
@@ -514,11 +637,11 @@ function Loading({ text }: { text: string }) {
 
 function ErrorBox({ message, onRetry, retryLabel }: { message: string; onRetry(): void; retryLabel: string }) {
   return (
-    <div className="flex flex-col items-start gap-3 rounded-md border border-red/30 bg-red-soft p-4" role="alert">
-      <p className="text-sm text-red">{message}</p>
-      <button type="button" onClick={onRetry} className="h-10 rounded-md bg-surface px-4 max-sm:h-11 text-sm font-semibold text-ink ring-1 ring-line-strong hover:bg-paper">
+    <Notice tone="error" className="flex flex-col items-start gap-3" role="alert">
+      <p className="text-sm">{message}</p>
+      <Button variant="ink" size="sm" onClick={onRetry}>
         {retryLabel}
-      </button>
-    </div>
+      </Button>
+    </Notice>
   );
 }

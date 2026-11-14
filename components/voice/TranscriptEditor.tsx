@@ -14,7 +14,7 @@ export function TranscriptEditor({ raw, value, onChange, maxLength = 1500, label
   const edited = value.trim() !== raw.trim();
   return (
     <div className="flex flex-col gap-2">
-      <label htmlFor="transcript" className="text-sm font-semibold text-ink">
+      <label htmlFor="transcript" className="type-label text-field-muted">
         {label}
       </label>
       <textarea
@@ -23,12 +23,12 @@ export function TranscriptEditor({ raw, value, onChange, maxLength = 1500, label
         maxLength={maxLength}
         onChange={(e) => onChange(e.target.value)}
         rows={5}
-        className="w-full resize-y rounded-md border border-line-strong bg-surface p-3 text-base text-ink focus:border-accent focus:outline-2 focus:outline-accent/30"
+        className="w-full resize-y rounded-chip border-2 border-field-line bg-paper p-4 text-[1.0625rem] leading-relaxed text-ink"
       />
-      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-ink-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[0.8125rem] text-field-muted">
         <span>Fix it if we misheard you. A fix is saved separately; we grade the words, not your accent.</span>
         {edited && (
-          <button type="button" className="inline-flex items-center max-sm:min-h-11 font-semibold text-accent hover:underline" onClick={() => onChange(raw)}>
+          <button type="button" className="inline-flex min-h-11 items-center px-1 font-semibold text-field-fg underline decoration-1 underline-offset-4" onClick={() => onChange(raw)}>
             Restore what we heard
           </button>
         )}

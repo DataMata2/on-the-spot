@@ -55,7 +55,7 @@ export function PushToTalk({ listening, onStart, onStop, elapsedMs, maxMs, disab
   const C = 2 * Math.PI * R;
 
   return (
-    <div className="flex flex-col items-center gap-3">
+    <div className="mt-auto flex flex-col items-center gap-3 pt-4">
       <button
         type="button"
         disabled={disabled}
@@ -68,12 +68,12 @@ export function PushToTalk({ listening, onStart, onStop, elapsedMs, maxMs, disab
         onContextMenu={(e) => e.preventDefault()}
         style={{ touchAction: "none", WebkitTouchCallout: "none" }}
         className={
-          "relative grid size-32 place-items-center rounded-full select-none outline-offset-4 transition-transform duration-150 " +
-          "focus-visible:outline-2 focus-visible:outline-accent disabled:opacity-45 " +
-          (listening ? "scale-105 bg-red text-white" : "bg-accent text-white hover:bg-accent-hover active:scale-95")
+          "relative grid size-[132px] place-items-center rounded-full select-none outline-offset-[14px] transition-transform duration-150 " +
+          "disabled:opacity-45 lg:size-[148px] [@media(max-height:700px)]:size-[112px] " +
+          (listening ? "bg-tomato text-ink" : "bg-field-mark text-field-face hover:brightness-105 active:scale-95")
         }
       >
-        <svg className="absolute inset-0 -rotate-90" viewBox="0 0 120 120" aria-hidden="true">
+        <svg className={"absolute -inset-2.5 size-[calc(100%+1.25rem)] -rotate-90 " + (listening ? "text-tomato" : "text-field-mark")} viewBox="0 0 120 120" aria-hidden="true">
           <circle cx="60" cy="60" r={R} fill="none" stroke="currentColor" strokeOpacity="0.25" strokeWidth="4" />
           {listening && (
             <circle cx="60" cy="60" r={R} fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - fraction)} />
@@ -81,17 +81,17 @@ export function PushToTalk({ listening, onStart, onStop, elapsedMs, maxMs, disab
         </svg>
         {listening ? (
           <span className="flex flex-col items-center leading-none">
-            <span className="size-5 rounded-sm bg-white" aria-hidden="true" />
-            <span className="mt-2 text-sm font-semibold tabular-nums">{remaining}s</span>
+            <span className="size-[26px] rounded-[6px] bg-ink" aria-hidden="true" />
+            <span className="mt-2 font-mono text-sm font-medium tabular-nums">{remaining}s</span>
           </span>
         ) : (
           <MicIcon />
         )}
-        {listening && <span className="absolute inset-0 animate-ping rounded-full bg-red/30" aria-hidden="true" />}
+        {listening && <span className="pointer-events-none absolute inset-0 rounded-full motion-safe:animate-rec-pulse" aria-hidden="true" />}
       </button>
-      <p className="text-sm text-ink-2" aria-live="polite">
+      <p className="text-[0.9375rem] font-semibold text-field-fg" aria-live="polite">
         {listening ? "Listening… tap to stop" : idleLabel}
-        {!listening && <span className="hidden text-ink-3 sm:inline"> · or press and hold</span>}
+        {!listening && <span className="hidden font-normal text-field-muted sm:inline"> · or press and hold</span>}
       </p>
     </div>
   );
@@ -99,7 +99,7 @@ export function PushToTalk({ listening, onStart, onStop, elapsedMs, maxMs, disab
 
 function MicIcon() {
   return (
-    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <rect x="9" y="2" width="6" height="12" rx="3" />
       <path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" />
     </svg>
