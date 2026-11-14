@@ -29,65 +29,73 @@ export interface PaywallProps {
   className?: string;
 }
 
-/** The Pro card: why it's showing, what Pro unlocks, the plan choice and checkout button, and the test-mode note. */
+/**
+ * The Pro card: why it's showing, the plan choice and checkout button, the billing and test-mode notes, then what
+ * Pro unlocks. A self-contained paper card, so it reads the same on any screen field (lemon pricing, night drill,
+ * pink progress, cobalt rehearse).
+ */
 export function Paywall({ reason, defaultPlan, title = "On the Spot Pro", className }: PaywallProps) {
   const titleId = useId();
   return (
     <section
       aria-labelledby={titleId}
-      className={cx("w-full max-w-md rounded-lg border border-line bg-surface shadow-raised", className)}
+      data-field="paper"
+      className={cx("w-full max-w-md rounded-card bg-paper text-ink", className)}
     >
       {reason && (
-        <div className="flex items-start gap-2.5 rounded-t-lg border-b border-line bg-sunken px-5 py-3 text-sm text-ink sm:px-6">
-          <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-ink-2" />
+        <div className="flex items-start gap-2.5 rounded-t-card border-b-2 border-ink bg-lemon px-5 py-3.5 text-[0.9375rem] leading-snug font-medium text-ink sm:px-7">
+          <Info aria-hidden className="mt-0.5 size-4 shrink-0 text-ink" />
           <p>{reason}</p>
         </div>
       )}
 
-      <div className="flex flex-col gap-6 p-5 sm:p-6">
+      <div className="flex flex-col gap-5 p-5 sm:gap-6 sm:p-7">
         <div className="flex flex-col gap-1.5">
-          <h2 id={titleId} className="text-xl font-bold tracking-[-0.01em] text-ink">
+          <h2 id={titleId} className="type-display text-[28px] leading-none text-ink sm:text-[34px]">
             {title}
           </h2>
-          <p className="text-sm text-ink-2">Practice every day until answering on the spot feels normal.</p>
+          <p className="text-[0.9375rem] leading-snug text-ink-2">Practice every day until answering on the spot feels normal.</p>
         </div>
 
-        <ul className="flex flex-col gap-3">
+        <PlanPicker defaultPlan={defaultPlan} />
+
+        <div className="-mt-1 flex flex-col gap-3">
+          <p className="text-sm leading-normal text-ink">
+            No account needed: Pro is tied to this browser. Subscription details are shown on the Stripe page.
+          </p>
+
+          <div className="flex items-start gap-2.5 rounded-lg border-2 border-dashed border-ink px-4 py-3 text-sm leading-normal text-ink">
+            <CreditCard aria-hidden className="mt-0.5 size-4 shrink-0 text-ink" />
+            <p>
+              <span className="font-semibold">Test mode: no real charge.</span> Pay with card{" "}
+              <span className="font-mono font-medium tracking-[0.04em] whitespace-nowrap tabular-nums">4242 4242 4242 4242</span>, any future date, any
+              CVC.
+            </p>
+          </div>
+
+          <p className="text-[13px] text-ink-2">For comparison: Spleek $14.99/mo · BoldVoice ~$150/yr</p>
+        </div>
+
+        <ul className="flex flex-col gap-4 border-t-2 border-ink pt-5">
           {UNLOCKS.map((u) => (
             <li key={u.title} className="flex gap-3">
-              <span aria-hidden className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-accent-soft">
-                <Check className="size-3.5 text-accent" strokeWidth={3} />
+              <span aria-hidden className="grid size-7 shrink-0 place-items-center rounded-full bg-ink">
+                <Check className="size-4 text-lemon" strokeWidth={3.5} />
               </span>
               <span className="flex flex-col">
-                <span className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
+                <span className="flex flex-wrap items-center gap-2 font-semibold text-ink">
                   {u.title}
                   {u.soon && (
-                    <span className="rounded-full bg-sunken px-2 py-0.5 text-[0.6875rem] font-semibold text-ink-2">
+                    <span className="rounded-pill bg-sunken px-2 py-0.5 text-[0.6875rem] font-semibold text-ink-2">
                       Coming soon
                     </span>
                   )}
                 </span>
-                <span className="text-sm text-ink-2">{u.detail}</span>
+                <span className="text-[0.9375rem] leading-snug text-ink-2">{u.detail}</span>
               </span>
             </li>
           ))}
         </ul>
-
-        <PlanPicker defaultPlan={defaultPlan} />
-
-        <div className="flex flex-col gap-1 text-center text-xs text-ink-3">
-          <p>No account needed: Pro is tied to this browser. Subscription details are shown on the Stripe page.</p>
-          <p>For comparison: Spleek $14.99/mo · BoldVoice ~$150/yr</p>
-        </div>
-
-        <div className="flex items-start gap-2.5 rounded-md border border-amber-mid/50 bg-amber-soft px-3.5 py-3 text-xs text-ink">
-          <CreditCard aria-hidden className="mt-0.5 size-4 shrink-0 text-amber" />
-          <p>
-            <span className="font-semibold">Test mode: no real charge.</span> Pay with card{" "}
-            <span className="font-semibold whitespace-nowrap tabular-nums">4242 4242 4242 4242</span>, any future date, any
-            CVC.
-          </p>
-        </div>
       </div>
     </section>
   );

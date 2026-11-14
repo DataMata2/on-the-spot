@@ -42,7 +42,7 @@ export function PlanPicker({ defaultPlan = DEFAULT_PLAN }: { defaultPlan?: PlanI
 
   return (
     <form action="/api/checkout" method="post" onSubmit={() => setSubmitting(true)} className="flex flex-col gap-4">
-      <fieldset className="flex flex-col gap-2.5">
+      <fieldset className="flex flex-col gap-3">
         <legend className="sr-only">Choose a plan</legend>
         {OPTIONS.map((o) => {
           const checked = plan === o.id;
@@ -50,9 +50,11 @@ export function PlanPicker({ defaultPlan = DEFAULT_PLAN }: { defaultPlan?: PlanI
             <label
               key={o.id}
               className={cx(
-                "relative flex cursor-pointer items-center gap-3 rounded-md border bg-surface px-4 py-3.5 transition-colors",
-                "has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-accent",
-                checked ? "border-accent ring-1 ring-accent" : "border-line-strong hover:border-ink-3",
+                "relative flex min-h-[76px] cursor-pointer items-center gap-3 rounded-chip px-4 py-3 text-ink transition-[background-color,box-shadow] sm:gap-3.5 sm:px-[18px]",
+                "has-[:focus-visible]:outline-3 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-field-ring",
+                checked
+                  ? "bg-paper shadow-[inset_0_0_0_3px_var(--color-ink)]"
+                  : "bg-sunken shadow-[inset_0_0_0_2px_transparent] hover:shadow-[inset_0_0_0_2px_var(--color-ink)]",
               )}
             >
               <input
@@ -65,27 +67,24 @@ export function PlanPicker({ defaultPlan = DEFAULT_PLAN }: { defaultPlan?: PlanI
               />
               <span
                 aria-hidden
-                className={cx(
-                  "grid size-5 shrink-0 place-items-center rounded-full border-2",
-                  checked ? "border-accent" : "border-line-strong",
-                )}
+                className="grid size-6 shrink-0 place-items-center rounded-full shadow-[inset_0_0_0_2px_var(--color-ink)]"
               >
-                <span className={cx("size-2.5 rounded-full", checked ? "bg-accent" : "bg-transparent")} />
+                <span className={cx("size-3 rounded-full", checked ? "bg-ink" : "bg-transparent")} />
               </span>
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="flex flex-wrap items-center gap-2 font-semibold text-ink">
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[17px] leading-snug font-semibold">
                   {o.label}
                   {o.id === "yearly" && savings > 0 && (
-                    <span className="rounded-full bg-accent-soft px-2 py-0.5 text-xs font-semibold text-accent-ink">
+                    <span className="rounded-pill bg-tomato px-2 py-px text-xs leading-5 font-bold text-ink">
                       Save {savings}%
                     </span>
                   )}
                 </span>
-                <span className="text-xs text-ink-3">{o.note}</span>
+                <span className="text-[13px] leading-snug text-ink-2">{o.note}</span>
               </span>
-              <span className="shrink-0 text-right">
-                <span className="text-lg font-bold text-ink">{o.price}</span>
-                <span className="text-xs text-ink-3"> {o.per}</span>
+              <span className="flex shrink-0 flex-col items-end whitespace-nowrap min-[360px]:block min-[360px]:text-right">
+                <span className="type-display text-[28px] leading-none">{o.price}</span>
+                <span className="text-[13px] text-ink-2"> {o.per}</span>
               </span>
             </label>
           );
