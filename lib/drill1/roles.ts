@@ -84,8 +84,9 @@ export interface RoleQuestion extends ColdQuestion {
   variant: QuestionVariant;
 }
 
-const c = (id: string, type: QuestionType, context: string, text: string): RoleQuestion => ({ id, type, context, text, variant: "cold" });
-const t = (id: string, type: QuestionType, context: string, text: string): RoleQuestion => ({ id, type, context, text, variant: "transfer" });
+type Situation = readonly [you: string, facts: string];
+const c = (id: string, type: QuestionType, context: string, text: string, situation: Situation): RoleQuestion => ({ id, type, context, text, situation, variant: "cold" });
+const t = (id: string, type: QuestionType, context: string, text: string, situation: Situation): RoleQuestion => ({ id, type, context, text, situation, variant: "transfer" });
 
 /**
  * Six per role: one cold question of each type, then two transfers (status and decision in a harder room). The
@@ -93,60 +94,60 @@ const t = (id: string, type: QuestionType, context: string, text: string): RoleQ
  */
 export const ROLE_BANKS: Record<BankRole, readonly RoleQuestion[]> = {
   "software-engineer": [
-    c("se-st-deploy", "status", "Standup. Your tech lead asks:", "Is the payment fix deployed, or still in review?"),
-    c("se-de-upgrade", "decision", "Architecture review. The staff engineer asks:", "Should we upgrade the framework now, or wait until after the release?"),
-    c("se-es-search", "estimate", "Sprint planning. The PM asks:", "How long will the new search API take?"),
-    c("se-bl-env", "blocker", "Standup. Your manager wraps up:", "Anything blocking you on the test environment?"),
-    t("se-st-outage", "status", "Incident call. The VP of Engineering joins and asks:", "Where are we on the outage? When will users be back?"),
-    t("se-de-rewrite", "decision", "Quarterly planning. The CTO asks you directly:", "Should we rewrite the billing module this quarter, yes or no?"),
+    c("se-st-deploy", "status", "Standup. Your tech lead asks:", "Is the payment fix deployed, or still in review?", ["You fixed the payment timeout bug.", "The fix passed tests and has 1 approval; it needs a second review before it can deploy."]),
+    c("se-de-upgrade", "decision", "Architecture review. The staff engineer asks:", "Should we upgrade the framework now, or wait until after the release?", ["You looked into the framework upgrade.", "It touches about 40 files and has 2 breaking changes. The release is 3 weeks away."]),
+    c("se-es-search", "estimate", "Sprint planning. The PM asks:", "How long will the new search API take?", ["You're the engineer on the new search API.", "The database index is ready; the endpoint and tests are left. A similar API took you about 2 weeks."]),
+    c("se-bl-env", "blocker", "Standup. Your manager wraps up:", "Anything blocking you on the test environment?", ["You need the test environment to finish the checkout tests.", "It has been down since yesterday. The DevOps team says they're on it but gave no time."]),
+    t("se-st-outage", "status", "Incident call. The VP of Engineering joins and asks:", "Where are we on the outage? When will users be back?", ["You're the on-call engineer.", "Logins fail for about 30% of users after this morning's deploy. You're rolling it back, which takes about 20 minutes."]),
+    t("se-de-rewrite", "decision", "Quarterly planning. The CTO asks you directly:", "Should we rewrite the billing module this quarter, yes or no?", ["You've worked in the billing module for a year.", "It causes about 3 bugs a month, but a rewrite would take your team most of the quarter."]),
   ],
   "product-manager": [
-    c("pm-st-roadmap", "status", "Weekly sync. Your VP of Product asks:", "Where are we on the Q3 roadmap? Is anything slipping?"),
-    c("pm-de-priority", "decision", "Sprint planning. The tech lead asks:", "Which goes first: the referral program or the new onboarding?"),
-    c("pm-es-beta", "estimate", "Leadership review. The CEO asks:", "When can we open the beta to all customers?"),
-    c("pm-bl-spec", "blocker", "1:1. Your manager asks:", "Is anything holding up the spec for the mobile app?"),
-    t("pm-st-sales", "status", "Sales kickoff. The head of sales asks you:", "Can my team start selling the new plan next month?"),
-    t("pm-de-kill", "decision", "Board prep. The COO asks:", "Usage is low. Do we keep the feature or kill it?"),
+    c("pm-st-roadmap", "status", "Weekly sync. Your VP of Product asks:", "Where are we on the Q3 roadmap? Is anything slipping?", ["You're the PM for the Q3 roadmap.", "4 of 6 items are on track. The reporting feature is 2 weeks late because a key engineer was out sick."]),
+    c("pm-de-priority", "decision", "Sprint planning. The tech lead asks:", "Which goes first: the referral program or the new onboarding?", ["You own both the referral program and the new onboarding.", "Onboarding fixes the step where 40% of new users drop off; referrals are a growth bet with no data yet."]),
+    c("pm-es-beta", "estimate", "Leadership review. The CEO asks:", "When can we open the beta to all customers?", ["You run the beta with 20 customers.", "Feedback is good, but 2 bugs block a wider launch. Engineering says the fixes need about 2 weeks."]),
+    c("pm-bl-spec", "blocker", "1:1. Your manager asks:", "Is anything holding up the spec for the mobile app?", ["You're writing the spec for the mobile app.", "It's mostly done. You're waiting on legal to approve the data privacy section."]),
+    t("pm-st-sales", "status", "Sales kickoff. The head of sales asks you:", "Can my team start selling the new plan next month?", ["You're launching the new pricing plan.", "Billing support is done; the sales materials are still in review. The launch date is the 1st of next month."]),
+    t("pm-de-kill", "decision", "Board prep. The COO asks:", "Usage is low. Do we keep the feature or kill it?", ["You own a feature that few people use.", "Only 3% of customers use it, but 2 of your biggest customers use it every day."]),
   ],
   designer: [
-    c("ds-st-mocks", "status", "Standup. The PM asks:", "Are the checkout mockups ready for engineering?"),
-    c("ds-de-option", "decision", "Design critique. The design lead asks:", "Option A or option B for the home screen? Which one would you ship?"),
-    c("ds-es-dark", "estimate", "Planning meeting. Your manager asks:", "How long to update the design system for dark mode?"),
-    c("ds-bl-tests", "blocker", "Weekly sync. The research lead asks:", "Is anything stopping you from running the usability tests?"),
-    t("ds-st-client", "status", "Client call. The account manager turns to you:", "Can you tell the client where the new brand work is?"),
-    t("ds-de-animation", "decision", "Sprint review. An engineer pushes back:", "This animation adds a week. Is it worth keeping?"),
+    c("ds-st-mocks", "status", "Standup. The PM asks:", "Are the checkout mockups ready for engineering?", ["You're designing the new checkout flow.", "The desktop mockups are done; mobile needs about 2 more days."]),
+    c("ds-de-option", "decision", "Design critique. The design lead asks:", "Option A or option B for the home screen? Which one would you ship?", ["You designed both home screen options.", "In tests, A was faster to use. Users liked how B looked, but 3 of 8 people missed its search bar."]),
+    c("ds-es-dark", "estimate", "Planning meeting. Your manager asks:", "How long to update the design system for dark mode?", ["You maintain the design system.", "It has about 120 components. The colour tokens are ready, but every component still needs checking."]),
+    c("ds-bl-tests", "blocker", "Weekly sync. The research lead asks:", "Is anything stopping you from running the usability tests?", ["You planned usability tests for the new settings page.", "The prototype is ready, but you still need 5 participants, and recruiting is slow."]),
+    t("ds-st-client", "status", "Client call. The account manager turns to you:", "Can you tell the client where the new brand work is?", ["You lead the brand work for this client.", "The logo is approved. The colours and fonts are in a second round of changes, due next Friday."]),
+    t("ds-de-animation", "decision", "Sprint review. An engineer pushes back:", "This animation adds a week. Is it worth keeping?", ["You designed the onboarding animation.", "In tests it helped new users understand the app, but engineering says it adds a week."]),
   ],
   "data-analytics": [
-    c("da-st-dashboard", "status", "Standup. Your manager asks:", "Is the revenue dashboard updated with last week's data?"),
-    c("da-de-metric", "decision", "Metrics review. The head of growth asks:", "Should our main metric be weekly or monthly active users?"),
-    c("da-es-churn", "estimate", "Planning meeting. The PM asks:", "How long until the churn model is ready to use?"),
-    c("da-bl-access", "blocker", "Standup. Your team lead asks:", "Are you still waiting on access to the sales database?"),
-    t("da-st-board", "status", "Exec review. The CFO turns to you:", "Can we trust these numbers for the board deck?"),
-    t("da-de-abtest", "decision", "Product review. The VP of Product asks:", "The A/B test is close. Do we ship the new version or not?"),
+    c("da-st-dashboard", "status", "Standup. Your manager asks:", "Is the revenue dashboard updated with last week's data?", ["You own the revenue dashboard.", "Last week's data is in except one region, whose data feed broke on Sunday. The data engineers are fixing it."]),
+    c("da-de-metric", "decision", "Metrics review. The head of growth asks:", "Should our main metric be weekly or monthly active users?", ["You analysed both metrics.", "Most users come back once or twice a week, so weekly users shows changes faster; monthly hides drops for weeks."]),
+    c("da-es-churn", "estimate", "Planning meeting. The PM asks:", "How long until the churn model is ready to use?", ["You're building the churn model.", "The first version is right about 70% of the time. You need about 2 more weeks to test it on new data."]),
+    c("da-bl-access", "blocker", "Standup. Your team lead asks:", "Are you still waiting on access to the sales database?", ["You need the sales database for a new report.", "You asked IT for access last week. They need your manager's approval, and the request is with him now."]),
+    t("da-st-board", "status", "Exec review. The CFO turns to you:", "Can we trust these numbers for the board deck?", ["You checked the numbers for the board deck.", "Revenue and user numbers match finance. Churn is off by 2% because its definition changed last quarter."]),
+    t("da-de-abtest", "decision", "Product review. The VP of Product asks:", "The A/B test is close. Do we ship the new version or not?", ["You ran the A/B test on the new checkout.", "The new version is up 1.5% in sales, but the result isn't significant yet; 1 more week would make it clear."]),
   ],
   "marketing-sales": [
-    c("ms-st-campaign", "status", "Weekly sync. The marketing director asks:", "How is the spring campaign doing so far?"),
-    c("ms-de-budget", "decision", "Budget meeting. Your manager asks:", "Should we move more budget to LinkedIn, or keep it on search ads?"),
-    c("ms-es-quarter", "estimate", "Pipeline review. The VP of Sales asks:", "How much do you expect to close this quarter?"),
-    c("ms-bl-contract", "blocker", "Deal review. The sales manager asks:", "What's holding up the Acme contract?"),
-    t("ms-st-pricing", "status", "Product sync. The PM asks you:", "What are customers saying about the new pricing?"),
-    t("ms-de-discount", "decision", "Leadership meeting. The CEO asks you directly:", "Should we give this client the twenty percent discount?"),
+    c("ms-st-campaign", "status", "Weekly sync. The marketing director asks:", "How is the spring campaign doing so far?", ["You run the spring campaign.", "After 2 weeks, sign-ups are 15% above target, but each sign-up costs more than planned."]),
+    c("ms-de-budget", "decision", "Budget meeting. Your manager asks:", "Should we move more budget to LinkedIn, or keep it on search ads?", ["You manage the ad budget.", "LinkedIn brings fewer leads, but they buy twice as often. Search ads bring more leads at a lower cost."]),
+    c("ms-es-quarter", "estimate", "Pipeline review. The VP of Sales asks:", "How much do you expect to close this quarter?", ["You're a sales rep with 8 open deals this quarter.", "3 deals are almost signed, worth about $120,000 together; the other 5 are early and hard to predict."]),
+    c("ms-bl-contract", "blocker", "Deal review. The sales manager asks:", "What's holding up the Acme contract?", ["You're closing the Acme deal.", "Acme agreed on price, but their legal team wants changes to the data clause, and our legal team hasn't replied yet."]),
+    t("ms-st-pricing", "status", "Product sync. The PM asks you:", "What are customers saying about the new pricing?", ["You've talked to about 20 customers since the new pricing launched.", "Most like the simpler plans, but 4 bigger customers complained that their price went up."]),
+    t("ms-de-discount", "decision", "Leadership meeting. The CEO asks you directly:", "Should we give this client the twenty percent discount?", ["You manage this client's account.", "They'll sign for 2 years with the discount and may pick a competitor without it. Your usual limit is 10%."]),
   ],
   "finance-ops": [
-    c("fo-st-close", "status", "Weekly sync. The controller asks:", "Are we on track to close the books by Friday?"),
-    c("fo-de-vendor", "decision", "Ops meeting. Your manager asks:", "Should we renew with our logistics vendor, or switch?"),
-    c("fo-es-travel", "estimate", "Budget review. The CFO asks:", "Roughly how much will we spend on travel this quarter?"),
-    c("fo-bl-invoices", "blocker", "Standup. Your team lead asks:", "Is anything slowing down the invoice backlog?"),
-    t("fo-st-runway", "status", "Leadership meeting. The CEO turns to you:", "Where are we on cash? How much runway do we have?"),
-    t("fo-de-hires", "decision", "Planning meeting. The head of engineering asks:", "Can we afford two more hires this year, yes or no?"),
+    c("fo-st-close", "status", "Weekly sync. The controller asks:", "Are we on track to close the books by Friday?", ["You run the month-end close.", "Most accounts are done. 2 vendor invoices are missing, and you've asked the vendors for them."]),
+    c("fo-de-vendor", "decision", "Ops meeting. Your manager asks:", "Should we renew with our logistics vendor, or switch?", ["You compared the logistics vendor with two others.", "The current one is reliable but 12% more expensive. The cheapest option has had late deliveries."]),
+    c("fo-es-travel", "estimate", "Budget review. The CFO asks:", "Roughly how much will we spend on travel this quarter?", ["You track the company's travel spending.", "Last quarter it was about $40,000. This quarter has 2 big conferences, so it will be higher."]),
+    c("fo-bl-invoices", "blocker", "Standup. Your team lead asks:", "Is anything slowing down the invoice backlog?", ["You manage the invoice backlog.", "About 200 invoices are waiting; half are stuck because the approval tool still sends them to people who left."]),
+    t("fo-st-runway", "status", "Leadership meeting. The CEO turns to you:", "Where are we on cash? How much runway do we have?", ["You manage cash planning.", "There is about $3 million in the bank, and the company spends about $250,000 a month."]),
+    t("fo-de-hires", "decision", "Planning meeting. The head of engineering asks:", "Can we afford two more hires this year, yes or no?", ["You own the hiring budget.", "This year's budget has room for 1 more hire. 2 hires work only if the new contract signs next month."]),
   ],
   healthcare: [
-    c("hc-st-patient", "status", "Morning huddle. The charge nurse asks:", "How is the patient in room twelve doing this morning?"),
-    c("hc-de-discharge", "decision", "Rounds. The attending physician asks:", "Is the patient in bed four ready to go home today, or should we keep her?"),
-    c("hc-es-wait", "estimate", "Clinic meeting. The practice manager asks:", "How long are patients waiting for a follow-up right now?"),
-    c("hc-bl-shift", "blocker", "Shift handover. Your manager asks:", "Is anything getting in the way of your shift tonight?"),
-    t("hc-st-family", "status", "Family meeting. The patient's daughter asks you:", "Is my mother getting better? What happens next?"),
-    t("hc-de-monitors", "decision", "Budget meeting. The hospital administrator asks:", "Should we buy the new monitors this year, or wait?"),
+    c("hc-st-patient", "status", "Morning huddle. The charge nurse asks:", "How is the patient in room twelve doing this morning?", ["You're the nurse caring for the patient in room twelve.", "His fever dropped overnight and he ate breakfast, but his blood pressure is still a bit high."]),
+    c("hc-de-discharge", "decision", "Rounds. The attending physician asks:", "Is the patient in bed four ready to go home today, or should we keep her?", ["You've cared for the patient in bed four for 2 days.", "Her pain is under control and she can walk, but her lab results come back this afternoon."]),
+    c("hc-es-wait", "estimate", "Clinic meeting. The practice manager asks:", "How long are patients waiting for a follow-up right now?", ["You schedule follow-up visits for the clinic.", "Patients wait about 3 weeks right now, and one doctor is on leave until next month."]),
+    c("hc-bl-shift", "blocker", "Shift handover. Your manager asks:", "Is anything getting in the way of your shift tonight?", ["You're a nurse on tonight's shift.", "The shift is one nurse short, and 2 of your patients need checks every hour."]),
+    t("hc-st-family", "status", "Family meeting. The patient's daughter asks you:", "Is my mother getting better? What happens next?", ["You're the nurse caring for her mother.", "Her breathing is better since the new medicine. The doctor reviews her this afternoon to decide about going home."]),
+    t("hc-de-monitors", "decision", "Budget meeting. The hospital administrator asks:", "Should we buy the new monitors this year, or wait?", ["You lead the nursing team on your ward.", "The old monitors fail about once a week. The new ones fit this year's budget only if training is cut."]),
   ],
 };
 

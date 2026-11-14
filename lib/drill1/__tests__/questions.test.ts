@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { QUESTION_TYPES, QUESTIONS, dailyType, getQuestion, pickQuestion } from "../questions";
+import { prewarmTexts } from "@/lib/speech/prewarm";
+import { staticTtsTexts } from "@/lib/speech/tts-allow";
+import { QUESTION_TYPES, QUESTIONS, TYPE_HINTS, dailyType, getQuestion, pickQuestion, situationText } from "../questions";
+import { ROLE_QUESTIONS } from "../roles";
 
 describe("question bank", () => {
   it("has at least 12 questions with unique ids, 3+ per type", () => {
@@ -50,5 +53,47 @@ describe("juryQuestion", () => {
     }
     expect(juryQuestion(seen)).toBeNull();
     for (const id of JURY_ORDER) expect(getQuestion(id)).not.toBeNull();
+  });
+});
+
+describe("situation (5b)", () => {
+  const all = [...QUESTIONS, ...ROLE_QUESTIONS];
+  it("every general and role-bank question has two short lines: who you are, then the facts", () => {
+    expect(all.length).toBe(QUESTIONS.length + 42);
+    for (const q of all) {
+      expect(q.situation, q.id).toHaveLength(2);
+      for (const line of q.situation!) {
+        expect(line.length, `${q.id}: ${line}`).toBeGreaterThan(10);
+        expect(line.length, `${q.id}: ${line}`).toBeLessThanOrEqual(200);
+        expect(line, q.id).toMatch(/[.!]$/);
+        expect(line).not.toBe(q.text);
+      }
+      expect(q.situation![0], q.id).toMatch(/^(You|Your)\b/);
+    }
+    expect(new Set(all.map((q) => q.situation![1])).size).toBe(all.length);
+  });
+
+  it("is display-only: no situation line is on the TTS allow-list or in any prewarm set", () => {
+    const allowed = staticTtsTexts();
+    const prewarm = [...prewarmTexts(), ...prewarmTexts("roles")];
+    for (const q of all) {
+      for (const line of q.situation!) {
+        expect(allowed.has(line)).toBe(false);
+        expect(prewarm.some((t) => t.includes(line))).toBe(false);
+      }
+    }
+  });
+
+  it("situationText joins the lines, empty without a situation", () => {
+    expect(situationText({ situation: ["You lead QA.", "The fix is in review."] })).toBe("You lead QA. The fix is in review.");
+    expect(situationText({})).toBe("");
+  });
+});
+
+describe("type hints (5d)", () => {
+  it("make the fact-dependent advice conditional", () => {
+    expect(TYPE_HINTS.status).toMatch(/If you don't know/);
+    expect(TYPE_HINTS.decision).toMatch(/If you can't decide/);
+    expect(TYPE_HINTS.estimate).toMatch(/If you can't estimate/);
   });
 });

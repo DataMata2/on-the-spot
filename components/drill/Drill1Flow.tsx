@@ -21,10 +21,12 @@ import { Paywall } from "@/components/paywall";
 import { AnswerCapture, MicExplainer, SLOW_RATE, ThinkTimer, TranscriptEditor, useSpeechToText, useTTS, type AnswerMode, type CapturedAnswer } from "@/components/voice";
 import { MAX_TRANSCRIPT_CHARS } from "@/lib/drill1/checks";
 import type { Drill1Feedback } from "@/lib/drill1/feedback";
+import { answeredLine } from "@/lib/drill1/mode-copy";
 import { TYPE_HINTS, TYPE_LABELS, type ColdQuestion, type QuestionType } from "@/lib/drill1/questions";
 import type { Role } from "@/lib/drill1/roles";
 import { loadRole, ROLE_EVENT, ROLE_KEY, roleFields, saveRole } from "@/lib/progress/role";
 import { addResult, type HelpMark } from "@/lib/progress/store";
+import { bestOpening, type RehearseAnswer } from "@/lib/rehearse/summary";
 import { FeedbackCard } from "./FeedbackCard";
 import { RolePicker } from "./RolePicker";
 
@@ -117,6 +119,8 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   const [strongerOpen, setStrongerOpen] = useState(false);
   const [carriedHelp, setCarriedHelp] = useState(false);
   const [done, setDone] = useState(0);
+  // Every graded answer of this run, last grade per question (queue mode's final screen reads it).
+  const [answers, setAnswers] = useState<(RehearseAnswer & { mode: AnswerMode })[]>([]);
   const roleRaw = useSyncExternalStore(subscribeRole, readRoleRaw, () => undefined);
   const wantsPick = useSyncExternalStore(noopSubscribe, readWantsPick, () => false);
   // The role picked on this visit (also for when storage is unavailable, e.g. a private window: the drill still
@@ -255,6 +259,8 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
       const fb = body as Drill1Feedback;
       setFeedback(fb);
       setDone((n) => n + 1);
+      const entry = { questionId: question.id, questionText: question.text, graded: fb.graded, strongerVersion: fb.strongerVersion, mode: answerMode };
+      setAnswers((list) => [...list.filter((a) => a.questionId !== question.id), entry]);
       addResult({
         drill: "drill1",
         questionId: question.id,
@@ -352,7 +358,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
                 </p>
                 <h2 className="type-display max-w-[14ch] text-[clamp(2.5rem,11vw,5.5rem)] leading-[0.98] text-field-fg">Now they turn to you.</h2>
                 <p className="max-w-[52ch] text-base text-field-muted sm:text-lg">
-                  One question at a time, read aloud with no warning. Take 5 seconds to think, then answer out loud, up to 45 seconds.
+                  One question at a time, read aloud with no warning. Take 5 seconds to think, then answer out loud (or type), up to 45 seconds.
                   Use your real facts: this is the meeting you&apos;ll actually be in.
                 </p>
               </>
@@ -424,8 +430,32 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
           <Blob state="proud" size={56} />
           <h2 className="type-display text-[clamp(2rem,8vw,3rem)] leading-[1.02]">That&apos;s the whole meeting.</h2>
           <p className="text-base text-ink-2">
-            You answered {done} of {queue?.length ?? done} questions out loud. Before the real one, say your first sentence for each topic once more.
+            {answeredLine(answers.length, queue?.length ?? done, answers.map((a) => a.mode))}{" "}
+            {answers.length > 0 ? "Before the real meeting, say each of these first sentences once more." : "Before the real one, say your first sentence for each topic once more."}
           </p>
+          {answers.length > 0 && (
+            <ol className="flex w-full flex-col gap-4">
+              {(queue ?? []).map((item, i) => {
+                const a = answers.find((x) => x.questionId === item.question.id);
+                const best = a ? bestOpening(a) : null;
+                return (
+                  <li key={item.question.id} className="flex flex-col gap-1.5 rounded-lg bg-sunken p-4">
+                    <p className="text-sm text-ink-2">
+                      <span className="font-semibold">{i + 1}.</span> “{item.question.text}”
+                    </p>
+                    {best ? (
+                      <>
+                        <p className="text-[1.0625rem] leading-snug font-semibold text-ink">{best.text}</p>
+                        <p className="type-label text-[0.6875rem] text-ink-2">{best.stronger ? "From the stronger version" : "Your first sentence"}</p>
+                      </>
+                    ) : (
+                      <p className="text-[0.9375rem] text-ink-2">Not answered in this run.</p>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
           <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
             {onExit && (
               <Button size="lg" onClick={onExit}>
@@ -457,6 +487,8 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   }
 
   const showAsk = phase.k === "question" || phase.k === "think" || phase.k === "answer";
+  // The situation (display only, never read aloud) stays up until the answer is sent.
+  const showSituation = (showAsk || phase.k === "review") && (question.situation?.length ?? 0) > 0;
   const recording = phase.k === "answer" && stt.listening;
   // Voice answer (mirrors AnswerCapture's typing/forcedTyping): the layout stays identical between idle and recording,
   // so the mic never moves under a pressed pointer (hold-to-talk with a mouse has no pointer capture).
@@ -511,6 +543,16 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
                   Skip reading
                 </button>
               )}
+            </div>
+          )}
+          {showSituation && (
+            <div className={cx("mt-4 max-w-[60ch] rounded-chip bg-field-tint px-4 py-3 text-left", qSize === "big" && "lg:mt-6")}>
+              <p className="type-label text-[0.6875rem] text-field-mark">Your situation</p>
+              {question.situation?.map((line) => (
+                <p key={line} className="mt-1 text-[0.9375rem] leading-snug text-field-fg">
+                  {line}
+                </p>
+              ))}
             </div>
           )}
           {showAsk && (
@@ -601,7 +643,7 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
         {phase.k === "feedback" && feedback && (
           // Desktop: verdict + actions on the left, the paper card on the right (FeedbackCard is a subgrid of this).
           <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:grid-rows-[auto_1fr] lg:gap-x-16 lg:gap-y-10">
-            <FeedbackCard feedback={feedback} strongerOpen={strongerOpen} onOpenStronger={() => setStrongerOpen(true)} />
+            <FeedbackCard feedback={feedback} strongerOpen={strongerOpen} onOpenStronger={() => setStrongerOpen(true)} mode={mode} />
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:col-start-1 lg:row-start-2 lg:self-start xl:flex-row">
               <Button variant={inherit ? "primary" : "lemon"} size="lg" onClick={retry} className="min-h-16 max-w-full flex-col gap-0 px-6 py-2.5 text-center leading-tight whitespace-normal">
                 <span className="text-[1.0625rem] font-bold whitespace-normal">

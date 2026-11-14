@@ -8,6 +8,7 @@
 
 import { Blob, PaperCard } from "@/components/kit";
 import type { Drill1Feedback, Quoted, Verdict } from "@/lib/drill1/feedback";
+import { modeCopy, type InputMode } from "@/lib/drill1/mode-copy";
 
 /** `label` is the accessible verdict; `word` is the same verdict shown huge (no new words). */
 const VERDICT_UI: Record<Verdict, { label: string; word: string }> = {
@@ -52,10 +53,13 @@ export interface FeedbackCardProps {
   feedback: Drill1Feedback;
   strongerOpen: boolean;
   onOpenStronger(): void;
+  /** How THIS answer was given: the copy says "said" only for a spoken one. */
+  mode: InputMode;
 }
 
-export function FeedbackCard({ feedback: f, strongerOpen, onOpenStronger }: FeedbackCardProps) {
+export function FeedbackCard({ feedback: f, strongerOpen, onOpenStronger, mode }: FeedbackCardProps) {
   const v = VERDICT_UI[f.answerFirst.verdict];
+  const copy = modeCopy(mode);
   const fillerList = Object.entries(f.checks.fillers.byFiller).map(([w, n]) => `${w} ×${n}`).join(", ");
   return (
     <article
@@ -93,7 +97,7 @@ export function FeedbackCard({ feedback: f, strongerOpen, onOpenStronger }: Feed
 
       <PaperCard className="flex flex-col gap-8 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
         <section className="flex flex-col gap-2">
-          <h3 className="type-label text-ink-2">What you said{f.edited ? " (with your fix)" : ""}</h3>
+          <h3 className="type-label text-ink-2">{copy.yourAnswer}{f.edited ? " (with your fix)" : ""}</h3>
           <blockquote className="rounded-lg bg-sunken p-4 text-[1.0625rem] leading-[1.65] text-ink">
             <Highlighted text={f.graded} quote={f.answerFirst.evidenceQuote} />
           </blockquote>
@@ -104,7 +108,7 @@ export function FeedbackCard({ feedback: f, strongerOpen, onOpenStronger }: Feed
           <section className="flex flex-col gap-3">
             <h3 className="type-label text-ink-2">Structure</h3>
             <ul className="flex flex-col gap-4">
-              <CheckRow label="Point" item={f.structure.point} hint="Missing: say the answer itself." />
+              <CheckRow label="Point" item={f.structure.point} hint={copy.missingPoint} />
               <CheckRow label="Reason" item={f.structure.reason} hint="Missing: one reason, the “because”." />
               <CheckRow label="Next step" item={f.structure.nextStep} hint="Missing: what happens next, or what you need." />
             </ul>
@@ -117,7 +121,7 @@ export function FeedbackCard({ feedback: f, strongerOpen, onOpenStronger }: Feed
               <>
                 <h3 className="type-label text-ink-2">A stronger version, in your words</h3>
                 <p className="rounded-lg bg-cobalt p-4 text-[1.0625rem] leading-relaxed text-paper">{f.strongerVersion}</p>
-                <p className="text-[0.8125rem] text-ink-2">Brackets like [your ETA] mark facts you didn&apos;t say. We never make them up.</p>
+                <p className="text-[0.8125rem] text-ink-2">{copy.bracketsNote}</p>
               </>
             ) : (
               <button type="button" onClick={onOpenStronger} className="group flex w-full flex-col items-center gap-2 rounded-card text-center">
@@ -155,7 +159,7 @@ export function FeedbackCard({ feedback: f, strongerOpen, onOpenStronger }: Feed
           {!f.aiAvailable && <p className="text-[0.8125rem] text-ink-2">The AI coach is unavailable right now, so this shows the quick checks only.</p>}
           <p className="flex items-center gap-2.5 text-sm text-ink-2">
             <Blob size={20} />
-            We grade what you said, never your accent.
+            {copy.gradeNote}
           </p>
         </div>
       </PaperCard>

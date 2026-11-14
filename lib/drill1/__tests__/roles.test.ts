@@ -2,7 +2,16 @@ import { describe, expect, it, vi } from "vitest";
 import { PREWARM_MAX_CHARS, prewarmTexts } from "@/lib/speech/prewarm";
 import { normalizeTtsText, staticTtsTexts } from "@/lib/speech/tts-allow";
 import { juryQuestion, pickQuestion, QUESTION_TYPES, QUESTIONS, type ColdQuestion, type QuestionType } from "../questions";
-import { isValidGeneratedText, ROLE_GEN_COUNT, ROLE_GEN_SYSTEM, roleGenUserMessage, validateRoleQuestions } from "../role-ai";
+import {
+  FALLBACK_SITUATION,
+  isValidGeneratedText,
+  ROLE_GEN_COUNT,
+  ROLE_GEN_SCHEMA,
+  ROLE_GEN_SITUATION_MAX,
+  ROLE_GEN_SYSTEM,
+  roleGenUserMessage,
+  validateRoleQuestions,
+} from "../role-ai";
 import { RoleQuestionCache, type RoleGenCreate } from "../role-gen";
 import {
   BANK_ROLES,
@@ -197,6 +206,37 @@ describe("validateRoleQuestions", () => {
   it("replaces a bad context with a neutral one", () => {
     const out = validateRoleQuestions({ questions: good.questions.map((q, i) => (i === 0 ? { ...q, context: "<script>" } : q)) });
     expect(out![0].context).toBe("In the meeting, someone turns to you:");
+  });
+});
+
+describe("generated situation (5b)", () => {
+  const withSit = {
+    questions: good.questions.map((q, i) => ({ ...q, you: "You lead the bridge repair crew.", facts: `Inspection found 3 cracked beams; repairs cost about $40,000 (item ${i + 1}).` })),
+  };
+
+  it("asks the model for the two lines", () => {
+    expect(ROLE_GEN_SCHEMA.properties.questions.items.required).toEqual(["type", "context", "text", "you", "facts"]);
+    expect(ROLE_GEN_SYSTEM).toMatch(/you and facts/);
+  });
+
+  it("keeps two valid lines (money and percentages allowed)", () => {
+    const out = validateRoleQuestions(withSit)!;
+    expect(out[0].situation).toEqual(["You lead the bridge repair crew.", "Inspection found 3 cracked beams; repairs cost about $40,000 (item 1)."]);
+  });
+
+  it("falls back to one neutral line when a line is missing, too long, markup or not English", () => {
+    const one = (patch: Record<string, unknown>) => validateRoleQuestions({ questions: withSit.questions.map((q, i) => (i === 0 ? { ...q, ...patch } : q)) })![0].situation;
+    expect(one({ facts: undefined })).toEqual(FALLBACK_SITUATION);
+    expect(one({ you: "" })).toEqual(FALLBACK_SITUATION);
+    expect(one({ facts: "x".repeat(ROLE_GEN_SITUATION_MAX + 1) })).toEqual(FALLBACK_SITUATION);
+    expect(one({ facts: "See <b>this</b> https://example.com" })).toEqual(FALLBACK_SITUATION);
+    expect(one({ you: "Вы руководите бригадой." })).toEqual(FALLBACK_SITUATION);
+    expect(FALLBACK_SITUATION).toHaveLength(1);
+  });
+
+  it("output without the lines still yields questions, each with the fallback", () => {
+    const out = validateRoleQuestions(good)!;
+    expect(out.every((q) => q.situation === FALLBACK_SITUATION)).toBe(true);
   });
 });
 

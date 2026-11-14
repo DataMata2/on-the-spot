@@ -70,7 +70,7 @@ export class RoleQuestionCache {
       const message = await deps.create(
         {
           model: deps.model,
-          max_tokens: 900,
+          max_tokens: 1600,
           output_config: { effort: "low", format: { type: "json_schema", schema: ROLE_GEN_SCHEMA } },
           system: ROLE_GEN_SYSTEM,
           messages: [{ role: "user", content: roleGenUserMessage(roleText) }],

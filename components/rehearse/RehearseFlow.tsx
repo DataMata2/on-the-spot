@@ -104,7 +104,7 @@ export function RehearseFlow() {
           <h1 className="type-display max-w-[14ch] text-[clamp(40px,11vw,80px)] leading-[0.98] text-field-fg">Practice the questions you&apos;ll actually get.</h1>
           <p className="max-w-[56ch] text-lg text-field-muted">
             Paste the agenda or a few lines about your next meeting. We&apos;ll write the {REHEARSE_COUNT} questions someone in that room is most likely to
-            ask you, then you answer them out loud, one by one, with the same feedback as the cold-question drill.
+            ask you, then you answer them one by one, out loud or typed, with the same feedback as the cold-question drill.
           </p>
         </div>
 

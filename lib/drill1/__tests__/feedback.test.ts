@@ -1,6 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { runChecks } from "../checks";
-import { buildFeedback, combineVerdict, evidenceInOpening, findSpan, guardStrongerVersion, normalizeAi, NOT_ENGLISH_NOTE, validateAi } from "../feedback";
+import {
+  buildFeedback,
+  combineVerdict,
+  evidenceInOpening,
+  FEEDBACK_SYSTEM,
+  feedbackUserMessage,
+  findSpan,
+  guardStrongerVersion,
+  normalizeAi,
+  NOT_ENGLISH_NOTE,
+  validateAi,
+} from "../feedback";
+import { getAnyQuestion } from "../roles";
 
 const T = "So we’re on track for Friday.  The API is done, and QA starts Monday.";
 
@@ -165,5 +177,45 @@ describe("TM-OTS-03: structure and answer-first need verified evidence", () => {
   it("evidence in the opening still proves answer-first", () => {
     const text = "The migration is on track. We finished the schema work yesterday.";
     expect(evidenceInOpening(text, "The migration is on track")).toBe(true);
+  });
+});
+
+describe("the question's situation (5b)", () => {
+  const given = "You lead the mobile team. The release slipped 2 days because QA found a login bug; the fix ships Thursday.";
+  it("the guard accepts numbers and days from the situation", () => {
+    expect(guardStrongerVersion("We slipped 2 days; the fix ships Thursday.", "we are a bit late", given)).toBe("We slipped 2 days; the fix ships Thursday.");
+  });
+  it("still redacts numbers and days that are in neither", () => {
+    expect(guardStrongerVersion("We slipped 3 days; it ships Friday.", "we are a bit late", given)).toBe("We slipped [your number] days; it ships [the date].");
+    expect(guardStrongerVersion("We slipped 2 days.", "we are a bit late")).toBe("We slipped [your number] days.");
+  });
+  it("validateAi uses the situation for the guard, but quotes still come from the transcript only", () => {
+    const raw = {
+      english: true,
+      answerFirst: { verdict: "yes", evidenceQuote: "QA found a login bug", note: "ok" },
+      structure: { point: { present: true, quote: "QA found a login bug" }, reason: { present: false, quote: "" }, nextStep: { present: false, quote: "" } },
+      strongerVersion: "We're 2 days late; the fix ships Thursday.",
+      tip: "t",
+    };
+    const v = validateAi(raw, "we are a bit late", given);
+    expect(v.ai!.strongerVersion).toBe("We're 2 days late; the fix ships Thursday.");
+    expect(v.ai!.structure.point.present).toBe(false);
+    expect(v.ai!.answerFirst.evidenceQuote).toBeNull();
+  });
+  it("the user message carries the situation of a bank question", () => {
+    const q = getAnyQuestion("se-st-deploy")!;
+    const msg = feedbackUserMessage(q, "it is in review");
+    expect(msg).toContain("<situation>");
+    expect(msg).toContain(q.situation![1]);
+    expect(feedbackUserMessage({ ...q, situation: undefined }, "x")).not.toContain("<situation>");
+  });
+});
+
+describe("no invented facts (5d)", () => {
+  it("the system prompt forbids facts outside the transcript and situation, and asks for conditional phrasing", () => {
+    expect(FEEDBACK_SYSTEM).toMatch(/never invent facts that are not in the transcript or the situation/);
+    expect(FEEDBACK_SYSTEM).toMatch(/conditional phrasing/);
+    expect(FEEDBACK_SYSTEM).toMatch(/\[placeholder\]/);
+    expect(FEEDBACK_SYSTEM).toMatch(/If the client hasn't replied yet/);
   });
 });

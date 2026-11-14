@@ -14,6 +14,10 @@ export const ROLE_GEN_MIN = 4;
 export const ROLE_GEN_TEXT_MIN = 12;
 export const ROLE_GEN_TEXT_MAX = 140;
 export const ROLE_GEN_CONTEXT_MAX = 80;
+/** Each situation line (display only, never voiced) is at most this long. */
+export const ROLE_GEN_SITUATION_MAX = 200;
+/** Shown when the model's situation fails the checks: one neutral line, no invented facts. */
+export const FALLBACK_SITUATION: readonly string[] = ["Answer as yourself: use your real work, and if you don't know a fact, say so and give the next step."];
 
 export const ROLE_GEN_SCHEMA = {
   type: "object",
@@ -26,8 +30,13 @@ export const ROLE_GEN_SCHEMA = {
           type: { type: "string", enum: [...QUESTION_TYPES] },
           context: { type: "string", description: "Where and who asks, ending with a colon, e.g. \"Standup. Your manager asks:\"" },
           text: { type: "string", description: "The question exactly as spoken: one or two short sentences, ending with a question mark." },
+          you: { type: "string", description: "Situation line 1: who the user is in this story, e.g. \"You lead the mobile team.\"" },
+          facts: {
+            type: "string",
+            description: "Situation line 2: what happened and the facts the user has to answer with, e.g. \"The release slipped 2 days because QA found a login bug; the fix is in review.\"",
+          },
         },
-        required: ["type", "context", "text"],
+        required: ["type", "context", "text", "you", "facts"],
         additionalProperties: false,
       },
     },
@@ -44,6 +53,7 @@ Write exactly ${ROLE_GEN_COUNT} questions that someone at that job really gets a
 - Types, in this order: "status" (where is X), "decision" (which option / should we), "estimate" (how long / how much / when), "blocker" (what is in your way), then one more "status" and one more "decision" asked in a harder room (a senior leader, a client, another team).
 - text: natural spoken American workplace English, plain and short, under 20 words, ending with a question mark. No names of real companies or people, no quotes, no lists.
 - context: where it happens and who asks, under 10 words, ending with a colon, e.g. "Standup. Your manager asks:".
+- you and facts: two short lines of background shown on screen (not spoken), so the user does not have to invent the status of a project they don't know. "you" = who the user is in this story, under 15 words (e.g. "You lead the mobile team."). "facts" = what happened and the concrete facts the user can answer with, under 30 words (e.g. "The release slipped 2 days because QA found a login bug; the fix is in review."). Give enough facts to answer the question; numbers and days are fine. Do not write the answer or the recommendation itself.
 - English only.`;
 
 /** The user message: the role text, delimited. */
@@ -67,14 +77,27 @@ export function isValidGeneratedText(text: string): boolean {
   return words.length >= 3;
 }
 
+/** A situation line may carry money and percentages, but no markup, code or links. */
+const FORBIDDEN_SITUATION = /[<>{}[\]\\|`~^@#*_=]|https?:|www\./i;
+
+function isValidSituationLine(line: string): boolean {
+  return line.length >= 8 && line.length <= ROLE_GEN_SITUATION_MAX && ENGLISH_CHARS.test(line) && !FORBIDDEN_SITUATION.test(line);
+}
+
+/** The model's two situation lines, or the neutral fallback line when either fails the checks. */
+export function validSituation(you: unknown, facts: unknown): readonly string[] {
+  const lines = [oneLine(you), oneLine(facts)];
+  return lines.every(isValidSituationLine) ? lines : FALLBACK_SITUATION;
+}
+
 function isValidContext(context: string): boolean {
   return context.length > 0 && context.length <= ROLE_GEN_CONTEXT_MAX && ENGLISH_CHARS.test(context) && !FORBIDDEN.test(context);
 }
 
 /**
  * The model's JSON → the generated questions (ids `ro-…`), or null when the output is unusable: not the expected
- * shape, or fewer than ROLE_GEN_MIN valid questions after dropping invalid entries and duplicates. A context that
- * fails the checks is replaced with a neutral one. `newId` is injectable for tests.
+ * shape, or fewer than ROLE_GEN_MIN valid questions after dropping invalid entries and duplicates. A context or
+ * situation that fails the checks is replaced with a neutral one. `newId` is injectable for tests.
  */
 export function validateRoleQuestions(raw: unknown, newId: () => string = () => crypto.randomUUID().slice(0, 12)): ColdQuestion[] | null {
   if (typeof raw !== "object" || raw === null) return null;
@@ -93,7 +116,7 @@ export function validateRoleQuestions(raw: unknown, newId: () => string = () => 
     if (seen.has(key)) continue;
     seen.add(key);
     const ctx = oneLine(r.context);
-    out.push({ id: `ro-${newId()}`, type: r.type, context: isValidContext(ctx) ? ctx : "In the meeting, someone turns to you:", text });
+    out.push({ id: `ro-${newId()}`, type: r.type, context: isValidContext(ctx) ? ctx : "In the meeting, someone turns to you:", text, situation: validSituation(r.you, r.facts) });
   }
   return out.length >= ROLE_GEN_MIN ? out : null;
 }
