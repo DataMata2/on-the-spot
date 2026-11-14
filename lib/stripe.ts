@@ -52,6 +52,8 @@ export async function createCheckoutSession({
     // Card only: no Link, Amazon Pay, Cash App or bank debits. (stripe@23 replaced `payment_method_types` on
     // Checkout Sessions with this filter.) Wallets such as Apple Pay / Google Pay ride on `card`.
     allowed_payment_method_types: ["card"],
+    // Per-session merchant name: the sandbox account's own name can't be changed without activating it.
+    branding_settings: { display_name: "On the Spot", button_color: "#0e5a3c" },
     line_items: [
       {
         quantity: 1,
