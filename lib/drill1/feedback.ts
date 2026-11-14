@@ -211,7 +211,9 @@ export function buildFeedback(args: {
   const wordPassed = checks.answerWord !== null;
   const evidence = ai?.answerFirst.evidenceQuote ?? null;
   // A non-English answer is never a success: the verdict is capped at "no" ("not yet"), with nothing scored.
-  const english = checks.english && ai?.english !== false;
+  // The model decides when it answered (the word-share heuristic can misread terse non-native English); the
+  // deterministic check is the fallback when there is no AI result.
+  const english = ai ? ai.english !== false : checks.english;
   if (!english) {
     return {
       status: "ok",

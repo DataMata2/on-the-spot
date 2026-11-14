@@ -82,17 +82,15 @@ describe("normalizeAi + buildFeedback", () => {
     expect(normalizeAi(raw, T)!.english).toBe(true);
     expect(normalizeAi({ ...raw, english: false }, T)!.english).toBe(false);
   });
-  it("caps a non-English answer at 'not yet' even when the model says yes (word check)", () => {
+  it("caps a non-English answer at 'not yet' by the word check when there is no AI result", () => {
     const es = "Sí, vamos bien. La API está lista y el QA empieza el lunes.";
-    const yes = {
-      english: true,
-      answerFirst: { verdict: "yes", evidenceQuote: "vamos bien", note: "Clear answer." },
-      structure: { point: { present: true, quote: "vamos bien" }, reason: { present: true, quote: "La API está lista" }, nextStep: { present: true, quote: "el QA empieza el lunes" } },
-      strongerVersion: "We're on track.",
-      tip: "Good.",
-    };
-    const fb = buildFeedback({ questionId: "x", graded: es, edited: false, checks: runChecks(es), ai: normalizeAi(yes, es) });
-    expect(fb).toMatchObject({ english: false, structure: null, strongerVersion: null, answerFirst: { verdict: "no", ai: "yes", evidenceQuote: null, note: NOT_ENGLISH_NOTE } });
+    const fb = buildFeedback({ questionId: "x", graded: es, edited: false, checks: runChecks(es), ai: null });
+    expect(fb).toMatchObject({ english: false, structure: null, strongerVersion: null, answerFirst: { verdict: "no", note: NOT_ENGLISH_NOTE } });
+  });
+  it("trusts the model over the word check for terse English", () => {
+    const terse = "Status green, deploy Friday, Kubernetes migration finished.";
+    const fb = buildFeedback({ questionId: "x", graded: terse, edited: false, checks: runChecks(terse), ai: normalizeAi({ ...raw, english: true }, terse) });
+    expect(fb.english).toBe(true);
   });
   it("caps the verdict when only the model says it is not English", () => {
     const fb = buildFeedback({ questionId: "x", graded: T, edited: false, checks: runChecks(T), ai: normalizeAi({ ...raw, english: false }, T) });
