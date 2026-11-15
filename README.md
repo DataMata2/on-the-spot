@@ -44,9 +44,30 @@
 
 ## Business model
 
-![On the Spot business model](docs/business-model.svg)
+**Same offer as the pitch: $12/month or $79/year, with daily free practice.**
 
-Full model and sources → [business-model/](business-model/)
+**[Read the full business research and financial model](business-model/RESEARCH.md)** ·
+**[Download the business-model PDF](docs/On-the-Spot-Business-Research.pdf)** ·
+[Submitted pitch](docs/pitch/On-the-Spot-Esep.pdf)
+
+At 10,000 active payers, the planning model gives about **$72k monthly revenue** and **$3.2k operating profit at
+$19.25 cash CAC**, or **$11k at a $10 cash-CAC target**. It includes free users, replacement acquisition, support
+and team compensation, before corporate tax and additional growth. These are scenarios, not observed results:
+AI $0.40/paid month; five active free users per payer; five Cold drills/free user/month; 5% conversion of new
+activated free entrants. Paid demand, usage and acquisition costs remain to be measured.
+
+[Sources](business-model/SOURCES.md) · [How to read the pitch's LTV and margin](business-model/DECK-NOTES.md) ·
+[Reproducible calculations](business-model/calculate.py) · [All scenario results](business-model/results.json)
+
+<details>
+<summary>Original pitch summary — partial contribution metrics, not company net profit</summary>
+
+![Original pitch business summary](docs/business-model.svg)
+
+The ~$55 LTV and ~90% margin describe narrower cost boundaries. Read the linked full-cost model before using
+them to judge profitability.
+
+</details>
 
 ## Talking to real people
 

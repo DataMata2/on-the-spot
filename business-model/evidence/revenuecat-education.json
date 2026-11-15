@@ -1,0 +1,110 @@
+{
+  "source": "https://www.revenuecat.com/page-data/state-of-subscription-apps/page-data.json",
+  "fetched": "2026-11-15",
+  "path": "result.data.wpPage.content > reportdynamicchart attributes",
+  "sha256_full_page_data": "70715ab617bcd8ffd22428b4b811dff43f4741995f3b948dbed16b0e13698710",
+  "charts": [
+    {
+      "chart": "Plan mix (subscriptions sold) by category",
+      "education_category_index": 1,
+      "values": [
+        {
+          "series": "Weekly",
+          "education_values": [
+            6.84
+          ],
+          "median_or_share": 6.84
+        },
+        {
+          "series": "Monthly",
+          "education_values": [
+            29.02
+          ],
+          "median_or_share": 29.02
+        },
+        {
+          "series": "Yearly",
+          "education_values": [
+            58.86
+          ],
+          "median_or_share": 58.86
+        },
+        {
+          "series": "Other",
+          "education_values": [
+            5.28
+          ],
+          "median_or_share": 5.28
+        }
+      ]
+    },
+    {
+      "chart": "Retained subscribers after 1 year by plan duration",
+      "education_category_index": 1,
+      "values": [
+        {
+          "series": "Monthly",
+          "education_values": [
+            1.7,
+            3.58,
+            6.33,
+            11.12,
+            17.88
+          ],
+          "median_or_share": 6.33
+        }
+      ]
+    },
+    {
+      "chart": "First 3 monthly subscription renewals by category",
+      "education_category_index": 1,
+      "values": [
+        {
+          "series": "1st",
+          "education_values": [
+            40.08,
+            48.04,
+            56.24,
+            65.63,
+            73.24
+          ],
+          "median_or_share": 56.24
+        }
+      ]
+    },
+    {
+      "chart": "First 3 annual subscription renewals by category",
+      "education_category_index": 1,
+      "values": [
+        {
+          "series": "1st",
+          "education_values": [
+            12.08,
+            17.42,
+            23.66,
+            31.62,
+            41.73
+          ],
+          "median_or_share": 23.66
+        }
+      ]
+    },
+    {
+      "chart": "Refund rate by app category",
+      "education_category_index": 1,
+      "values": [
+        {
+          "series": "",
+          "education_values": [
+            0.97,
+            1.98,
+            4.31,
+            8.11,
+            15.22
+          ],
+          "median_or_share": 4.31
+        }
+      ]
+    }
+  ]
+}
