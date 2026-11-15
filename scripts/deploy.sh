@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # One-command redeploy: ships origin/main to the server, rebuilds and restarts the container.
-# Usage: scripts/deploy.sh            (env vars live in /home/ubuntu/on-the-spot/.env on the server)
+# Usage: DEPLOY_HOST=user@host DEPLOY_DIR=/path/on/server scripts/deploy.sh   (the app's env vars live in $DEPLOY_DIR/.env on the server)
 set -euo pipefail
 
-HOST="${DEPLOY_HOST:-root@incode.kz}"
-DIR="${DEPLOY_DIR:-/home/ubuntu/on-the-spot}"
+HOST="${DEPLOY_HOST:?set DEPLOY_HOST (user@host)}"
+DIR="${DEPLOY_DIR:?set DEPLOY_DIR (the app folder on the server)}"
 cd "$(dirname "$0")/.."
 
 REF="${DEPLOY_REF:-origin/main}"; [ "$REF" = origin/main ] && git fetch -q origin main

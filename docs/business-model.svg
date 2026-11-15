@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="810" viewBox="0 0 1200 810" role="img" aria-labelledby="t d">
+  <title id="t">On the Spot business model</title>
+  <desc id="d">Price $12 a month or $79 a year. LTV about $55 per payer. About 90% gross margin. A yearly payer repays a CAC under about $40 from the first charge. Break-even about 470 active payers. CAC by planned channel from about $9 (referral) to $225–450 (LinkedIn). $100M ARR needs about 1.16M payers, about 18% of 6.3M college-educated immigrant workers aged 25–44.</desc>
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; fill: #15141F; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }
+    .h1 { font-size: 30px; font-weight: 800; }
+    .h2 { font-size: 20px; font-weight: 800; }
+    .lab { font-size: 11.5px; font-weight: 700; letter-spacing: 1.2px; fill: #5D5A6B; }
+    .big { font-size: 36px; font-weight: 800; }
+    .sub { font-size: 13px; fill: #4A4757; }
+    .small { font-size: 12px; fill: #5D5A6B; }
+    .row { font-size: 14px; font-weight: 600; }
+    .num { font-size: 13px; font-weight: 700; }
+    .tick { font-size: 11px; fill: #6E6B7A; }
+  </style>
+
+  <!-- solid background so it reads the same in GitHub light and dark mode -->
+  <rect width="1200" height="810" fill="#FFFCF2"/>
+  <rect width="1200" height="8" fill="#2D3BE8"/>
+
+  <text x="40" y="58" class="h1">On the Spot · the business model</text>
+  <text x="40" y="86" class="sub">Unit economics at the live prices. Retention and conversion are category benchmarks, not our data yet: there are no real payers so far.</text>
+
+  <!-- KPI tiles -->
+  <g>
+    <rect x="40" y="108" width="211" height="140" rx="14" fill="#FFFFFF" stroke="#E4DFD0"/>
+    <text x="58" y="136" class="lab">PRICE (PRO)</text>
+    <text x="58" y="182" class="big">$12 · $79</text>
+    <text x="58" y="208" class="sub">a month · a year</text>
+    <text x="58" y="228" class="sub">yearly = $6.58/mo, save 45%</text>
+
+    <rect x="267" y="108" width="211" height="140" rx="14" fill="#2D3BE8"/>
+    <text x="285" y="136" class="lab" style="fill:#C9CEFF">LTV PER PAYER</text>
+    <text x="285" y="182" class="big" style="fill:#FFE04A">≈ $55</text>
+    <text x="285" y="208" class="sub" style="fill:#FFFFFF">blended, range $54–57</text>
+    <text x="285" y="228" class="sub" style="fill:#FFFFFF">≈ $42 including support</text>
+
+    <rect x="494" y="108" width="211" height="140" rx="14" fill="#FFFFFF" stroke="#E4DFD0"/>
+    <text x="512" y="136" class="lab">GROSS MARGIN</text>
+    <text x="512" y="182" class="big">≈ 90%</text>
+    <text x="512" y="208" class="sub">after Stripe, AI and speech</text>
+    <text x="512" y="228" class="sub">at ≈ $0.40 per Pro user/mo</text>
+
+    <rect x="721" y="108" width="211" height="140" rx="14" fill="#FFFFFF" stroke="#E4DFD0"/>
+    <text x="739" y="136" class="lab">PAYBACK</text>
+    <text x="739" y="182" class="big">≈ $40</text>
+    <text x="739" y="208" class="sub">a yearly payer repays a CAC</text>
+    <text x="739" y="228" class="sub">under this from the 1st charge</text>
+
+    <rect x="948" y="108" width="211" height="140" rx="14" fill="#FFFFFF" stroke="#E4DFD0"/>
+    <text x="966" y="136" class="lab">BREAK-EVEN</text>
+    <text x="966" y="182" class="big">≈ 470</text>
+    <text x="966" y="208" class="sub">active payers, typical AI use</text>
+    <text x="966" y="228" class="sub">costs $250 + $2,000/mo (Planned)</text>
+  </g>
+
+  <!-- Left panel: CAC by channel -->
+  <rect x="40" y="268" width="660" height="460" rx="16" fill="#FFFFFF" stroke="#E4DFD0"/>
+  <text x="62" y="302" class="h2">CAC by channel</text>
+  <rect x="222" y="286" width="72" height="22" rx="11" fill="#FFE04A"/>
+  <text x="258" y="301" class="lab" text-anchor="middle" style="fill:#15141F">PLANNED</text>
+  <text x="62" y="324" class="small">No paid acquisition yet. CAC = cost to win one payer, from ad benchmarks and our assumptions.</text>
+
+  <text x="62" y="356" class="lab">CHANNEL</text>
+  <text x="260" y="356" class="lab">CAC, LOG SCALE</text>
+  <text x="490" y="356" class="lab">CAC</text>
+  <text x="560" y="356" class="lab">LTV/CAC</text>
+
+  <!-- LTV line at $55: x = 260 + 220*log10(v/5)/2 -->
+  <line x1="374.6" y1="366" x2="374.6" y2="650" stroke="#2D3BE8" stroke-width="1.5" stroke-dasharray="4 4"/>
+  <text x="378" y="377" class="small" style="fill:#2D3BE8;font-weight:700">LTV ≈ $55</text>
+
+  <!-- rows: y centre 395 + 40*i -->
+  <g>
+    <text x="62" y="400" class="row">In-product referral</text>
+    <circle cx="288.1" cy="395" r="6" fill="#1E7F4A"/>
+    <text x="490" y="400" class="num">≈ $9</text>
+    <text x="560" y="400" class="num">5.9×</text>
+    <rect x="640" y="384" width="46" height="22" rx="11" fill="#DDF3E5"/>
+    <text x="663" y="399" class="small" text-anchor="middle" style="fill:#1E7F4A;font-weight:700">yes</text>
+
+    <text x="62" y="440" class="row">Communities, career centres</text>
+    <circle cx="312.5" cy="435" r="6" fill="#1E7F4A"/>
+    <text x="490" y="440" class="num">≈ $15</text>
+    <text x="560" y="440" class="num">3.7×</text>
+    <rect x="640" y="424" width="46" height="22" rx="11" fill="#DDF3E5"/>
+    <text x="663" y="439" class="small" text-anchor="middle" style="fill:#1E7F4A;font-weight:700">first</text>
+
+    <text x="62" y="480" class="row">Creators, paid per payer</text>
+    <circle cx="326.2" cy="475" r="6" fill="#1E7F4A"/>
+    <text x="490" y="480" class="num">$20</text>
+    <text x="560" y="480" class="num">2.75×</text>
+    <rect x="640" y="464" width="46" height="22" rx="11" fill="#DDF3E5"/>
+    <text x="663" y="479" class="small" text-anchor="middle" style="fill:#1E7F4A;font-weight:700">yes</text>
+
+    <text x="62" y="520" class="row">Meta ads</text>
+    <rect x="321.2" y="510" width="31.8" height="10" rx="5" fill="#C77700"/>
+    <text x="490" y="520" class="num">$18–35</text>
+    <text x="560" y="520" class="num">1.6–3.1×</text>
+    <rect x="640" y="504" width="46" height="22" rx="11" fill="#FFF0C9"/>
+    <text x="663" y="519" class="small" text-anchor="middle" style="fill:#8A5200;font-weight:700">test</text>
+
+    <text x="62" y="560" class="row">YouTube flat-fee sponsors</text>
+    <rect x="370" y="550" width="99.3" height="10" rx="5" fill="#8E8A99"/>
+    <text x="490" y="560" class="num">$50–400</text>
+    <text x="560" y="560" class="num">0.14–1.1×</text>
+    <rect x="640" y="544" width="46" height="22" rx="11" fill="#ECEAF0"/>
+    <text x="663" y="559" class="small" text-anchor="middle" style="fill:#4A4757;font-weight:700">no</text>
+
+    <text x="62" y="600" class="row">Google search</text>
+    <rect x="411.8" y="590" width="52.5" height="10" rx="5" fill="#8E8A99"/>
+    <text x="490" y="600" class="num">$120–360</text>
+    <text x="560" y="600" class="num">0.15–0.5×</text>
+    <rect x="640" y="584" width="46" height="22" rx="11" fill="#ECEAF0"/>
+    <text x="663" y="599" class="small" text-anchor="middle" style="fill:#4A4757;font-weight:700">no</text>
+
+    <text x="62" y="640" class="row">LinkedIn ads</text>
+    <rect x="441.9" y="630" width="33.1" height="10" rx="5" fill="#8E8A99"/>
+    <text x="490" y="640" class="num">$225–450</text>
+    <text x="560" y="640" class="num">0.12–0.25×</text>
+    <rect x="640" y="624" width="46" height="22" rx="11" fill="#ECEAF0"/>
+    <text x="663" y="639" class="small" text-anchor="middle" style="fill:#4A4757;font-weight:700">no</text>
+  </g>
+
+  <!-- log axis $5..$500 -->
+  <line x1="260" y1="660" x2="480" y2="660" stroke="#BDB8AA"/>
+  <g class="tick">
+    <line x1="260" y1="656" x2="260" y2="664" stroke="#BDB8AA"/><text x="260" y="678" class="tick" text-anchor="middle">$5</text>
+    <line x1="293.1" y1="656" x2="293.1" y2="664" stroke="#BDB8AA"/><text x="293.1" y="678" class="tick" text-anchor="middle">$10</text>
+    <line x1="370" y1="656" x2="370" y2="664" stroke="#BDB8AA"/><text x="364" y="678" class="tick" text-anchor="middle">$50</text>
+    <line x1="403.1" y1="656" x2="403.1" y2="664" stroke="#BDB8AA"/><text x="403.1" y="678" class="tick" text-anchor="middle">$100</text>
+    <line x1="480" y1="656" x2="480" y2="664" stroke="#BDB8AA"/><text x="480" y="678" class="tick" text-anchor="middle">$500</text>
+  </g>
+  <text x="62" y="706" class="small">Click → paid 2–4%, referral = one free month, community $15 and creator bounty $20 are assumptions.</text>
+
+  <!-- Right panel: $100M ARR path -->
+  <rect x="716" y="268" width="444" height="460" rx="16" fill="#15141F"/>
+  <text x="738" y="302" class="h2" style="fill:#FFFFFF">The path to $100M ARR</text>
+  <text x="738" y="330" class="sub" style="fill:#C9C6D6">$100M ÷ ≈ $86 a year per active payer</text>
+  <text x="738" y="372" class="big" style="fill:#FFE04A">≈ 1.16M payers</text>
+  <text x="738" y="394" class="small" style="fill:#A9A6B8">≈ 89% of active payers are yearly: 0.89 × $79 + 0.11 × $144</text>
+
+  <text x="738" y="428" class="sub" style="fill:#FFFFFF">US wedge: 6.3M college-educated immigrant</text>
+  <text x="738" y="445" class="sub" style="fill:#FFFFFF">workers aged 25–44</text>
+  <rect x="738" y="455" width="320" height="20" rx="10" fill="#34323F"/>
+  <rect x="738" y="455" width="57.6" height="20" rx="10" fill="#4D5BFF"/>
+  <text x="1068" y="470" class="num" style="fill:#FFFFFF">≈ 18%</text>
+  <text x="738" y="494" class="small" style="fill:#FFB59E">A stretch for the wedge alone.</text>
+
+  <text x="738" y="526" class="sub" style="fill:#FFFFFF">Broader: ≈ 13.9M US professionals who fear</text>
+  <text x="738" y="543" class="sub" style="fill:#FFFFFF">speaking up in a meeting</text>
+  <rect x="738" y="553" width="320" height="20" rx="10" fill="#34323F"/>
+  <rect x="738" y="553" width="25.6" height="20" rx="10" fill="#FFE04A"/>
+  <text x="1068" y="568" class="num" style="fill:#FFFFFF">≈ 8%</text>
+  <rect x="738" y="582" width="132" height="20" rx="10" fill="none" stroke="#FFE04A"/>
+  <text x="804" y="596" class="lab" text-anchor="middle" style="fill:#FFE04A;font-size:10.5px">FUTURE, NOT BUILT</text>
+
+  <text x="738" y="628" class="sub" style="fill:#FFFFFF">Holding 1.16M payers takes ≈ 1.26M new payers a year.</text>
+  <rect x="738" y="642" width="400" height="66" rx="10" fill="#24222F"/>
+  <text x="754" y="664" class="lab" style="fill:#FFE04A">PLANNED · STEP 1</text>
+  <text x="754" y="684" class="sub" style="fill:#FFFFFF">Year-1 target: 10k payers ≈ $0.86M ARR</text>
+  <text x="754" y="700" class="small" style="fill:#A9A6B8">an arithmetic target, not a forecast</text>
+
+  <!-- footer -->
+  <text x="40" y="758" class="small">Comparable: Duolingo has 13.1M paid subscribers (Q3 2026); 1.16M payers is ≈ 9% of that base.</text>
+  <text x="40" y="778" class="small">Sources: RevenueCat State of Subscription Apps 2026 (Education); Stripe, Anthropic, ElevenLabs pricing; LocaliQ/WordStream 2026; seodata.dev; ZenABM 2026;</text>
+  <text x="40" y="796" class="small">BLS foreign-born workers 2025; Ruscio et al. 2008; Duolingo Q3 2026 shareholder letter. Full model, inputs and formulas: business-model/</text>
+</svg>

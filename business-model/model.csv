@@ -1,0 +1,88 @@
+id,section,kind,item,value,unit,mark,source_or_formula
+P1,price,input,Pro monthly price,12,USD/month,product (live),lib/plans.ts (amountCents 1200); https://speak.incode.kz
+P2,price,input,Pro yearly price,79,USD/year,product (live),lib/plans.ts (amountCents 7900)
+P2a,price,derived,Yearly price per month,6.58,USD/month,calc,P2 / 12
+P2b,price,derived,Yearly saving vs 12 x monthly,45,%,calc,1 - P2 / (12 x P1)
+P3,price,input,Free tier,3 drill-1 starts per UTC day + one drill-2 try,,product,lib/limits-core.ts
+B1,price,input,"RevenueCat median price, Education (global)",9.99 / 44.99,USD per month / per year,V,https://www.revenuecat.com/state-of-subscription-apps/ (Median price per plan duration by category)
+B2,price,input,"RevenueCat median price, North America",9.99 / 39.99,USD per month / per year,V,https://www.revenuecat.com/state-of-subscription-apps/ (by geography)
+R1,retention,input,"1st monthly renewal, Education",56.24,%,V,https://www.revenuecat.com/state-of-subscription-apps/ (First 3 monthly subscription renewals by category)
+R1na,retention,input,"1st monthly renewal, North America",54.91,%,V,https://www.revenuecat.com/state-of-subscription-apps/ (by geography)
+R2,retention,input,"Monthly plan retained after 12 months, Education",6.33,%,V,https://www.revenuecat.com/state-of-subscription-apps/ (Retained subscribers after 1 year by plan duration)
+R2x,retention,input,"Monthly plan retained after 12 months, all categories (NA cross-check)",8.17,%,V,same chart
+R3,retention,input,"1st annual renewal, Education",23.66,%,V,https://www.revenuecat.com/state-of-subscription-apps/ (First 3 annual subscription renewals by category)
+R3na,retention,input,"1st annual renewal, North America",25.8,%,V,same (by geography)
+R4,retention,input,"Plan mix sold, Education: yearly / monthly / weekly / other",58.86 / 29.02 / 6.84 / 5.28,%,V,https://www.revenuecat.com/state-of-subscription-apps/ (Plan mix by category)
+R5,retention,input,"Refund rate, Education",4.31,%,V,https://www.revenuecat.com/state-of-subscription-apps/ (Refund rate by app category)
+R5na,retention,input,"Refund rate, North America",3.45,%,V,same (by geography)
+R6,retention,input,"Day-35 download to paid, Education",2.15,%,V,https://www.revenuecat.com/state-of-subscription-apps/
+R8,retention,input,"RLTV per payer after 1 year, Education (sanity check)",27.28,USD,V,https://www.revenuecat.com/state-of-subscription-apps/
+R9,retention,input,"AI apps retained after 12 months: monthly / annual",6.14 / 21.1,%,V,https://www.revenuecat.com/state-of-subscription-apps/ (AI vs non-AI)
+C1,costs,input,Stripe card fee,2.9% + 0.30,USD per charge,V,https://stripe.com/pricing
+C2,costs,input,Stripe Billing fee,0.7,% of billing volume,V,https://stripe.com/billing/pricing
+C1a,costs,derived,Stripe cost per $12 charge,0.73,USD,calc,12 x (2.9% + 0.7%) + 0.30
+C1b,costs,derived,Stripe cost per $79 charge,3.14,USD,calc,79 x (2.9% + 0.7%) + 0.30
+C3,costs,input,Claude Sonnet 5.5 price,2 input / 10 output,USD per million tokens,V,https://platform.claude.com/docs/en/about-claude/pricing
+C4,costs,input,ElevenLabs Scribe v3 speech-to-text,0.20,USD per audio hour,V,https://elevenlabs.io/pricing/api
+C5,costs,input,ElevenLabs Flash TTS,0.04,USD per 1K characters,V,https://elevenlabs.io/pricing/api
+U1,costs,input,Base usage,12 sessions/month (8 drill 1 + 3 drill 2 + 1 rehearse),,ASSUMPTION,business-model/README.md section 3
+U2,costs,input,Heavy usage,30 sessions/month at max_tokens caps,,ASSUMPTION,business-model/README.md section 3
+C6,costs,derived,AI + speech cost per active Pro user (base),0.40,USD/month,calc,Claude 0.11 + 0.08 + 0.05 + STT 0.05 + TTS 0.10 (token and call counts in README section 3)
+C7,costs,derived,AI + speech cost per active Pro user (heavy),1.46,USD/month,calc,Claude 0.46 + 0.46 + 0.18 + STT 0.12 + TTS 0.24
+C8,costs,input,AI + speech cost used in LTV,1.50,USD/month,ASSUMPTION,conservative round-up of C7 (matches our earlier internal API budget)
+C9,costs,input,Support,4 min per payer per month at 20 USD/h = 1.33,USD/month,ASSUMPTION,4 / 60 x 20
+G1,margin,derived,"Gross margin, monthly plan, base AI",90.6,%,calc,(12 - C1a - C6) / 12
+G2,margin,derived,"Gross margin, annual plan, base AI",89.9,%,calc,(79 - C1b - 12 x C6) / 79
+G3,margin,derived,"Gross margin, monthly plan, heavy AI",81.4,%,calc,(12 - C1a - C8) / 12
+G4,margin,derived,"Gross margin, annual plan, heavy AI",73.2,%,calc,(79 - C1b - 12 x C8) / 79
+L1,ltv,derived,Net per paid month (monthly plan),9.35,USD,calc,(12 - C1a - C8) x (1 - R5)
+L2,ltv,derived,Paid months in year 1 (monthly plan),3.61,months,calc,"month 1 = 1.0, month 2 = R1, geometric decay to R2 at month 12, summed over 12 months"
+L3,ltv,derived,Monthly-plan LTV,33.7,USD,calc,L1 x L2
+L4,ltv,derived,Net per annual charge,55.36,USD,calc,(79 - C1b - 12 x C8) x (1 - R5)
+L5,ltv,derived,Annual-plan LTV,68.5,USD,calc,L4 x (1 + R3)
+M1,ltv,input,Plan mix sold (our two plans),67 annual / 33 monthly,%,"V mix, applied as ASSUMPTION",R4 yearly and monthly renormalised: 58.86 / (58.86 + 29.02)
+L6,ltv,derived,Blended LTV,57.0,USD,calc,0.67 x L5 + 0.33 x L3
+L6na,ltv,derived,Blended LTV (North America cross-check),53.7,USD,calc,"52/48 mix, R1na, R2x, R3na, R5na"
+L7,ltv,derived,Headline LTV per payer,55 (range 54-57),USD,calc,between L6na and L6
+L8,ltv,derived,Blended LTV including support,42,USD,calc,"same as L6 with C9 subtracted per paid month (monthly 28.9, annual 48.7)"
+PB1,payback,derived,CAC a yearly payer repays from the first charge,40,USD (approx.),calc,(79 - C1b - 12 x C8 - 12 x C9) x (1 - R5)
+PB2,payback,derived,Paid months a monthly payer needs at a 35 USD CAC,3.7,months,calc,35 / L1
+K1,cac,input,Click to paid conversion,2 (base) / 4 (optimistic),%,ASSUMPTION,anchored on R6
+CH1,cac,derived,CAC: in-product referral (Planned),9,USD,ASSUMPTION,one forgone month = L1; LTV/CAC 5.9x
+CH2,cac,input,CAC: communities and career centres (Planned),15,USD,ASSUMPTION,team time + a free month for the group; LTV/CAC 3.7x
+CH3,cac,input,CAC: creators paid per payer (Planned),20,USD,ASSUMPTION,bounty = 25% of P2; LTV/CAC 2.75x
+CH4in,cac,input,"Meta ads CPC, Education & Instruction",0.70,USD per click,V-3P,https://localiq.com/blog/facebook-advertising-benchmarks/
+CH4,cac,derived,CAC: Meta ads (Planned test),18-35,USD,calc,CH4in / K1 (4% / 2%); LTV/CAC 1.6-3.1x
+CH5in,cac,input,"YouTube Education integration CPM",20-40,USD per 1000 views,V-3P,https://outlierkit.com/resources/youtube-sponsorship-rates/
+CH5,cac,derived,CAC: creators on flat-fee sponsorship,50-400,USD,calc,"CPM / 1000 / (view to visit 0.5-1% x visit to paid 2-4%, ASSUMPTION); LTV/CAC 0.14-1.1x"
+CH6in,cac,input,"Google search CPC, 6 English-practice keywords (volume-weighted)",7.21,USD per click,V-3P,https://www.seodata.dev/keyword/english-speaking-practice
+CH6in2,cac,input,"Google search CPC, LocaliQ Education & Instruction",4.81,USD per click,V-3P,https://localiq.com/blog/search-advertising-benchmarks/
+CH6,cac,derived,CAC: Google search,180-360 (120-240 at 4.81 CPC),USD,calc,"CH6in / K1; CH6in2 / K1; LTV/CAC 0.15-0.3x (0.2-0.5x)"
+CH7in,cac,input,LinkedIn US median CPC,8.99,USD per click,V-3P,https://zenabm.com/blog/linkedin-ads-benchmarks-2026.md
+CH7,cac,derived,CAC: LinkedIn ads,225-450,USD,calc,CH7in / K1; LTV/CAC 0.12-0.25x
+CH8,cac,derived,CAC: SEO content,88-175,USD,calc,"1000 USD/month / (5% of 5700 searches x 2-4%) = 6-11 payers/month (ASSUMPTION); LTV/CAC 0.3-0.6x"
+MK1,market,input,Foreign-born civilian labour force 2025,32687,thousand people,V,https://www.bls.gov/news.release/forbrn.t01.htm
+MK2,market,input,Foreign-born aged 25-34 / 35-44,6128 / 8538,thousand people,V,https://www.bls.gov/news.release/forbrn.t01.htm
+MK3,market,derived,Foreign-born workers aged 25-44,14.67,million,calc,6128 + 8538 thousand
+MK4,market,input,Foreign-born 25+ with a bachelor's or higher,43.2,%,V,https://www.bls.gov/news.release/forbrn.nr0.htm
+MK5,market,derived,College-educated foreign-born workers aged 25-44 (the wedge),6.3,million,calc,MK3 x MK4 (BA share is for 25+: order of magnitude)
+MK6,market,derived,Foreign-born in management/professional occupations (all ages),11.5,million,calc,36.8% x 31321 thousand employed; https://www.bls.gov/news.release/forbrn.t04.htm
+A1,arr,derived,Share of active payers on the yearly plan,89,%,calc,"0.67 x 12 x (1 + R3) / (0.67 x 12 x (1 + R3) + 0.33 x L2)"
+A2,arr,derived,ARR per active payer,86,USD/year,calc,0.89 x 79 + 0.11 x 144
+A3,arr,derived,Payers needed for 100M USD ARR,1.16,million,calc,100000000 / A2 (all-annual: / 79 = 1.27M)
+A4,arr,derived,Share of the wedge,18,%,calc,A3 / MK5 (all-annual 20%)
+A5,arr,derived,New payers a year to hold A3,1.26,million,calc,annual stock 1.033M / 1.2366 + monthly 0.128M x 12 / 3.61
+A6,arr,derived,Acquisition spend a year at a 20 USD blended CAC,25,million USD,calc,A5 x 20 (ASSUMPTION CAC)
+A7,arr,derived,Year-1 target (Planned),10k payers = 0.86M USD ARR,,calc,"10000 x A2 (an arithmetic target, not a forecast)"
+D1,arr,input,Duolingo paid subscribers Q3 2026,13.1,million,V,https://www.sec.gov/Archives/edgar/data/0001562088/000162828026069474/q3fy26duolingo9-30x26share.htm
+D2,arr,input,Duolingo subscription revenue Q3 2026,269985,thousand USD,V,same
+D3,arr,derived,Duolingo subscription revenue per paid subscriber,82,USD/year,calc,D2 x 4 / D1
+D4,arr,derived,A3 as a share of Duolingo's paid base,9,%,calc,A3 / D1
+F1,future,input,US adults with a lifetime fear of speaking up in a meeting or class,19.5,%,V,https://pmc.ncbi.nlm.nih.gov/articles/PMC2262178/ (Ruscio et al. 2008; survey 2001-03)
+F2,future,derived,US employed in management/professional occupations 2025,71.3,million,calc,MK6 + 45.2% x 132172 thousand native-born; https://www.bls.gov/news.release/forbrn.t04.htm
+F3,future,derived,"US professionals who fear speaking up in a meeting (Future, not built)",13.9,million,calc,F2 x F1 (ASSUMPTION: 2001-03 prevalence applied to 2025)
+F4,future,derived,A3 as a share of F3,8,%,calc,A3 / F3
+BE1,breakeven,input,Fixed costs in the first tier (Planned placeholders),250 fixed + 2000 founders,USD/month,ASSUMPTION,our planning placeholders (tier up to 500 payers)
+BE2,breakeven,derived,Contribution per active payer-month,3.70 (heavy AI) - 4.80 (base AI),USD,calc,"89/11 active mix: price - Stripe - AI - support (C9) - infra 0.10 - refunds, per month"
+BE3,breakeven,derived,Break-even active payers at base AI use,470,payers,calc,(250 + 2000) / 4.80 (before acquisition spend)
+BE4,breakeven,derived,Break-even at heavy AI use,none in the first tier; next tier 7750 USD/month / 3.70 = 2100,payers,calc,"next tier: founders 4000 + staff 3000 + fixed 750, capped at 2000 payers"
