@@ -15,7 +15,8 @@
 
 import { errorMessage } from "@/lib/client-error";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { Blob, Button, cx, Notice, PaperCard, ScreenField, type FieldName } from "@/components/kit";
 import { Paywall } from "@/components/paywall";
 import { AnswerCapture, MicExplainer, SLOW_RATE, ThinkTimer, TranscriptEditor, useSpeechToText, useTTS, type AnswerMode, type CapturedAnswer } from "@/components/voice";
@@ -23,7 +24,8 @@ import { MAX_TRANSCRIPT_CHARS } from "@/lib/drill1/checks";
 import type { Drill1Feedback } from "@/lib/drill1/feedback";
 import { answeredLine } from "@/lib/drill1/mode-copy";
 import { TYPE_HINTS, TYPE_LABELS, type ColdQuestion, type QuestionType } from "@/lib/drill1/questions";
-import type { Role } from "@/lib/drill1/roles";
+import { createPickSignal, onWantsPickChange, shouldShowPicker, wantsPickFrom } from "@/lib/drill1/pick-signal";
+import type { Role, StartSource } from "@/lib/drill1/roles";
 import { loadRole, ROLE_EVENT, ROLE_KEY, roleFields, saveRole } from "@/lib/progress/role";
 import { addResult, type HelpMark } from "@/lib/progress/store";
 import { bestOpening, type RehearseAnswer } from "@/lib/rehearse/summary";
@@ -66,9 +68,23 @@ function readRoleRaw(): string {
     return "";
   }
 }
-/** /drill?role=pick (the progress card's "change" link) reopens the picker. */
-const readWantsPick = () => new URLSearchParams(window.location.search).get("role") === "pick";
-const noopSubscribe = () => () => {};
+/**
+ * /drill?role=pick (the progress card's "change" link) reopens the picker, also on a Drill1Flow that Next kept mounted
+ * from an earlier visit (OTS-CURRENT-06): PickReader feeds the router's search params into this signal.
+ */
+const pickSignal = createPickSignal();
+const readWantsPick = () => pickSignal.snapshot(() => wantsPickFrom(window.location.search));
+
+/** Renders nothing: mirrors useSearchParams() into pickSignal (its own Suspense keeps the page prerenderable). */
+function PickReader() {
+  const params = useSearchParams();
+  const wants = wantsPickFrom(params);
+  useEffect(() => {
+    pickSignal.set(wants);
+  }, [wants]);
+  useEffect(() => () => pickSignal.set(undefined), []);
+  return null;
+}
 
 function readMode(): AnswerMode | null {
   try {
@@ -101,7 +117,20 @@ export interface Drill1FlowProps {
   onExit?: () => void;
 }
 
-export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
+export function Drill1Flow(props: Drill1FlowProps = {}) {
+  return (
+    <>
+      {!props.queue && (
+        <Suspense fallback={null}>
+          <PickReader />
+        </Suspense>
+      )}
+      <Drill1FlowInner {...props} />
+    </>
+  );
+}
+
+function Drill1FlowInner({ queue, onExit }: Drill1FlowProps) {
   const tts = useTTS();
   const stt = useSpeechToText({ maxMs: 45_000 });
   const [phase, setPhase] = useState<Phase>({ k: "intro" });
@@ -122,10 +151,17 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   // Every graded answer of this run, last grade per question (queue mode's final screen reads it).
   const [answers, setAnswers] = useState<(RehearseAnswer & { mode: AnswerMode })[]>([]);
   const roleRaw = useSyncExternalStore(subscribeRole, readRoleRaw, () => undefined);
-  const wantsPick = useSyncExternalStore(noopSubscribe, readWantsPick, () => false);
+  const wantsPick = useSyncExternalStore(pickSignal.subscribe, readWantsPick, () => false);
   // The role picked on this visit (also for when storage is unavailable, e.g. a private window: the drill still
   // uses it). The ref mirrors it for startQuestion.
   const [pickedNow, setPickedNow] = useState<Role | null>(null);
+  // A new role=pick (the progress card's "change", again) reopens the picker even after a pick on an earlier visit.
+  const [prevWantsPick, setPrevWantsPick] = useState(wantsPick);
+  const pickEdge = onWantsPickChange(prevWantsPick, wantsPick);
+  if (pickEdge.changed) {
+    setPrevWantsPick(wantsPick);
+    if (pickEdge.clearPicked) setPickedNow(null);
+  }
   const pickedRole = useRef<Role | null>(null);
   // Set by a pick on the role picker: the intro then moves focus to its primary button (keyboard and screen-reader
   // users continue in place instead of at the top of the page). Never set on a plain page load.
@@ -133,6 +169,8 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   const introRef = useRef<HTMLElement | null>(null);
   // The first start for an "Other" role waits on the AI writing its questions (several seconds): say so.
   const [writingRole, setWritingRole] = useState(false);
+  // The "Other" role's questions couldn't be written, so this one is from the general bank (OTS-CURRENT-05): say so.
+  const [generalFallback, setGeneralFallback] = useState(false);
 
   const seenRef = useRef<string[]>([]);
   const queueIdx = useRef(0);
@@ -150,13 +188,14 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   const help: HelpMark = hintOpen || carriedHelp ? "with_help" : "independent";
 
   const startQuestion = useCallback(
-    async (type: QuestionType | null, carry: boolean, typing: boolean) => {
+    async (type: QuestionType | null, carry: boolean, typing: boolean, retryRole = false) => {
       tts.unlock(); // inside the click, before any await (iOS)
       const token = ++tokenRef.current;
       setPreferTyping(typing);
       let q: ColdQuestion;
       let issuedAttempt: string;
       let issuedToken: string | undefined;
+      let fallback = false;
       if (queue) {
         const item = queue[queueIdx.current];
         if (!item) {
@@ -169,15 +208,15 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
         issuedToken = item.ttsToken;
       } else {
         const role = loadRole() ?? pickedRole.current;
-        setWritingRole(role?.id === "other" && seenRef.current.length === 0);
+        setWritingRole(role?.id === "other" && (retryRole || seenRef.current.length === 0));
         setPhase({ k: "starting" });
         let res: Response;
-        let body: { question?: ColdQuestion; attemptId?: string; ttsToken?: string; usage?: Usage; pro?: boolean; error?: string; code?: string };
+        let body: { question?: ColdQuestion; attemptId?: string; source?: StartSource; ttsToken?: string; usage?: Usage; pro?: boolean; error?: string; code?: string };
         try {
           res = await fetch("/api/drill1/start", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ type, excludeIds: seenRef.current, ...roleFields(role) }),
+            body: JSON.stringify({ type, excludeIds: seenRef.current, ...roleFields(role), ...(retryRole ? { retryRole: true } : {}) }),
           });
           body = await res.json().catch(() => ({}));
         } catch {
@@ -198,7 +237,9 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
         q = body.question;
         issuedAttempt = body.attemptId;
         issuedToken = typeof body.ttsToken === "string" ? body.ttsToken : undefined;
+        fallback = body.source === "general_fallback";
       }
+      setGeneralFallback(fallback);
       seenRef.current = [...seenRef.current, q.id];
       setQuestion(q);
       setAttemptId(issuedAttempt);
@@ -340,17 +381,34 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
   // inherits the page's field (every colour below is field-aware).
   const inherit = Boolean(queue);
 
-  // The role picker: before the intro, when no role is saved (or the progress card asked to change it). Never in
-  // queue mode. Until storage is read (SSR, hydration), an empty night field: the same field the intro paints.
-  if (!queue && phase.k === "intro") {
+  // The role picker: before the intro, when no role is saved, or whenever the progress card asked to change it
+  // (whatever phase an earlier run on this mounted page was in). Never in queue mode. Until storage is read (SSR,
+  // hydration), an empty night field: the same field the intro paints.
+  if (!queue && (phase.k === "intro" || (wantsPick && !pickedNow))) {
     if (roleRaw === undefined) return <DrillField inherit={false} field="night" spotlight>{null}</DrillField>;
     const saved = (roleRaw ? loadRole() : null) ?? pickedNow;
-    if (!saved || (wantsPick && !pickedNow)) {
+    if (shouldShowPicker({ queue: false, saved: Boolean(saved), wantsPick, pickedNow: Boolean(pickedNow), phaseIsIntro: phase.k === "intro" })) {
       const pick = (role: Role) => {
         pickedRole.current = role;
         focusAfterPick.current = true;
         saveRole(role);
         setPickedNow(role);
+        if (phase.k !== "intro") {
+          // The old run ends here (its results stay in progress): drop anything still pending and start at the intro.
+          tokenRef.current += 1;
+          gradeAbort.current?.abort();
+          tts.cancel();
+          stt.reset();
+          setQuestion(null);
+          setAttemptId(null);
+          setFeedback(null);
+          setHintOpen(false);
+          setStrongerOpen(false);
+          setCarriedHelp(false);
+          setGeneralFallback(false);
+          setPhase({ k: "intro" });
+        }
+        // Native replaceState syncs with the router (useSearchParams), so a later "change" is a fresh role=pick.
         if (wantsPick) window.history.replaceState(null, "", window.location.pathname);
       };
       return (
@@ -529,6 +587,20 @@ export function Drill1Flow({ queue, onExit }: Drill1FlowProps = {}) {
               .join(" · ")}
           </span>
         </div>
+
+        {generalFallback && !queue && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-chip bg-field-tint px-4 py-2 text-[0.9375rem] text-field-fg" role="status">
+            <span>Couldn&apos;t tailor this one; here&apos;s a general question.</span>
+            <button
+              type="button"
+              className="inline-flex min-h-11 items-center font-semibold underline decoration-1 underline-offset-4 hover:no-underline disabled:opacity-45"
+              disabled={stt.listening || phase.k === "grading"}
+              onClick={() => void startQuestion(null, false, preferTyping, true)}
+            >
+              Retry for my role
+            </button>
+          </div>
+        )}
 
         {/* The question, as a meeting moment */}
         <div className={cx("flex flex-col", centred && "lg:items-center lg:text-center", qSize === "big" && "pt-2 lg:pt-10")}>

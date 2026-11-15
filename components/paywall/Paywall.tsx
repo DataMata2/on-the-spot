@@ -73,7 +73,7 @@ export function Paywall({ reason, defaultPlan, title = "On the Spot Pro", classN
             </p>
           </div>
 
-          <p className="text-[13px] text-ink-2">For comparison: Spleek $14.99/mo · BoldVoice ~$150/yr</p>
+          <p className="text-[13px] text-ink-2">For comparison: Spleek $14.99/mo</p>
         </div>
 
         <ul className="flex flex-col gap-4 border-t-2 border-ink pt-5">

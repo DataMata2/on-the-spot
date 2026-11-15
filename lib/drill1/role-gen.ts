@@ -1,6 +1,6 @@
 // Drill 1 "Other" role, the I/O part: one AI call per guest + role text, cached in memory (per process, like the
 // attempts), counted against the AI budget. Every failure (no budget, timeout, API error, invalid output) returns
-// null, and the caller silently serves the general bank. A failure is remembered for a while, so a guest whose
+// null, and the caller serves the general bank, marked `source: "general_fallback"` (the UI says so and offers a retry). A failure is remembered for a while, so a guest whose
 // text can't be used doesn't pay an AI call on every start.
 import type { MessageCreateParamsNonStreaming } from "@anthropic-ai/sdk/resources/beta/messages/messages";
 import type { ColdQuestion } from "./questions";
@@ -39,13 +39,14 @@ export class RoleQuestionCache {
 
   /**
    * The generated questions for this guest + role text (cached), or null (use the general bank). `roleText` must
-   * already be validated (cleanRoleText).
+   * already be validated (cleanRoleText). `retry` (the user pressed "Retry for my role") skips a remembered failure;
+   * the call still takes the AI budget, and each retry is a user-started question, so it can't loop.
    */
-  async get(guestId: string, roleText: string, deps: RoleGenDeps, signal?: AbortSignal): Promise<ColdQuestion[] | null> {
+  async get(guestId: string, roleText: string, deps: RoleGenDeps, signal?: AbortSignal, opts: { retry?: boolean } = {}): Promise<ColdQuestion[] | null> {
     const now = (deps.now ?? Date.now)();
     const key = `${guestId}\n${roleText.toLowerCase()}`;
     const hit = this.entries.get(key);
-    if (hit && now - hit.at < (hit.questions ? OK_TTL_MS : FAIL_TTL_MS)) return hit.questions;
+    if (hit && now - hit.at < (hit.questions ? OK_TTL_MS : FAIL_TTL_MS) && !(opts.retry && !hit.questions)) return hit.questions;
     const running = this.inflight.get(key);
     if (running) return running;
     const job = this.generate(roleText, deps, signal)

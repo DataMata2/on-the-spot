@@ -222,3 +222,20 @@ export function pickForRole(
   }
   return opts.general(type, excludeIds);
 }
+
+/**
+ * Where a started question came from (POST /api/drill1/start `source`, OTS-CURRENT-05): "generated" (written by the
+ * AI for an "Other" role), "role" (a role bank), "general" (the general bank, as asked or because the role's pool
+ * ran out), or "general_fallback" (an "Other" role whose questions couldn't be written: the UI says so, never
+ * presenting it as tailored).
+ */
+export type StartSource = "generated" | "role" | "general" | "general_fallback";
+
+export function startSource(role: RoleId, question: ColdQuestion, pool: readonly ColdQuestion[] | null | undefined): StartSource {
+  if (role === "other") {
+    if (!pool) return "general_fallback";
+    return pool.includes(question) ? "generated" : "general";
+  }
+  if (isBankRole(role)) return ROLE_BANKS[role].some((q) => q.id === question.id) ? "role" : "general";
+  return "general";
+}

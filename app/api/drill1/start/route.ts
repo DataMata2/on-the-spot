@@ -2,7 +2,7 @@ import { getAnthropic, MODEL } from "@/lib/ai";
 import { attempts } from "@/lib/drill1/attempts";
 import { isQuestionType, juryQuestion, pickQuestion, type ColdQuestion, type QuestionType } from "@/lib/drill1/questions";
 import { roleQuestions } from "@/lib/drill1/role-gen";
-import { parseRole, pickForRole } from "@/lib/drill1/roles";
+import { parseRole, pickForRole, startSource } from "@/lib/drill1/roles";
 import { GuardError, guardResponse, readJsonBody } from "@/lib/ai-guard";
 import { getOrCreateGuestId } from "@/lib/guest";
 import { drillUsage, takeAiBudget, takeDrillStart } from "@/lib/limits";
@@ -15,11 +15,13 @@ const NO_STORE = { "cache-control": "no-store" };
 const general = (type: QuestionType | null, excludeIds: readonly string[]) => (type ? null : juryQuestion(excludeIds)) ?? pickQuestion(type, excludeIds);
 
 /**
- * POST /api/drill1/start `{ type?, excludeIds?, role?, roleText? }` → `{ question, attemptId, ttsToken?, usage }`.
+ * POST /api/drill1/start `{ type?, excludeIds?, role?, roleText?, retryRole? }` → `{ question, attemptId, source, ttsToken?, usage }`.
  * Starting a new question counts one drill against the free limit (3/day); over the limit → 402 `free_limit`.
  * `type` keeps a retry on the same question type while the role pool has one (else another type from the pool); `excludeIds` (the questions already seen) keeps it a NEW question.
  * `role` (lib/drill1/roles.ts ROLE_IDS; anything else = general) picks the bank. For "other", `roleText` (≤ 60 chars)
- * is turned into questions by the AI (one call per guest + text, cached); on any failure the general bank is used.
+ * is turned into questions by the AI (one call per guest + text, cached); on any failure the general bank is used and
+ * `source` is "general_fallback" (else "generated", "role" or "general": lib/drill1/roles.ts startSource).
+ * `retryRole: true` (the UI's "Retry for my role") retries the AI even if it failed for this text a moment ago.
  * A generated question comes with `ttsToken` so POST /api/speech/tts will voice it.
  */
 export async function POST(request: Request) {
@@ -45,6 +47,7 @@ export async function POST(request: Request) {
         role.text,
         { create: (params, opts) => getAnthropic().beta.messages.create(params, opts), model: MODEL, takeBudget: () => takeAiBudget(request, guestId).ok },
         request.signal,
+        { retry: body.retryRole === true },
       );
       if (request.signal.aborted) return new Response(null, { status: 499 });
       pool = generated ?? undefined;
@@ -54,9 +57,10 @@ export async function POST(request: Request) {
     // A generated question is kept with its attempt (feedback reads it from there) and gets a TTS token; bank
     // questions (general and role banks) are found by id and are on the static TTS allow-list.
     const custom = pool?.includes(question) ?? false;
+    const source = startSource(role.id, question, pool);
     const attempt = attempts.create(guestId, custom ? question : question.id);
     return Response.json(
-      { question, attemptId: attempt.id, ...(custom ? { ttsToken: ttsToken(question.text) } : {}), usage: drillUsage(guestId, pro), pro },
+      { question, attemptId: attempt.id, source, ...(custom ? { ttsToken: ttsToken(question.text) } : {}), usage: drillUsage(guestId, pro), pro },
       { headers: NO_STORE },
     );
   } catch (err) {
