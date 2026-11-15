@@ -73,7 +73,7 @@ them to judge profitability.
 
 <table>
   <tr>
-    <td width="240"><img src="docs/interview.gif" width="240" alt="A tester talking about On the Spot after trying it on his phone"></td>
+    <td width="240"><a href="https://github.com/DataMata2/on-the-spot/releases/download/interviews/tester-1-aidos-handyman.mp4"><img src="docs/interview.gif" width="240" alt="A tester talking about On the Spot after trying it on his phone"></a><br><sub>▶ click to watch</sub></td>
     <td>
       <blockquote>“What I liked most is that you can practise for the different situations you run into at work… the app shows you right away what you did right and what you need to improve. This is very useful for me.”</blockquote>
       <p>Aidos, freelance handyman, US · translated from Kazakh</p>
@@ -87,10 +87,15 @@ them to judge profitability.
 >
 > Lawyer, immigrant professional working in English in the US, after looking through the product · translated from Russian
 
-> “I know what I want to say in English, but when I have to answer quickly, I struggle… You find out your weak spots
-> and your strong points. It's very convenient on a phone too.”
->
-> Tester 3, tried both apps and preferred On the Spot · translated from Kazakh
+<table>
+  <tr>
+    <td width="220"><a href="https://github.com/DataMata2/on-the-spot/releases/download/interviews/tester-3.mp4"><img src="docs/interview-tester3.gif" width="220" alt="A tester who tried both apps talking about On the Spot"></a><br><sub>▶ click to watch</sub></td>
+    <td>
+      <blockquote>“I know what I want to say in English, but when I have to answer quickly, I struggle… You find out your weak spots and your strong points. It's very convenient on a phone too.”</blockquote>
+      <p>Tester 3, tried both apps and preferred On the Spot · translated from Kazakh</p>
+    </td>
+  </tr>
+</table>
 
 ▶ Watch the full interviews: [Aidos, handyman (59 s)](https://github.com/DataMata2/on-the-spot/releases/download/interviews/tester-1-aidos-handyman.mp4) · [a third tester (37 s)](https://github.com/DataMata2/on-the-spot/releases/download/interviews/tester-3.mp4)
 
