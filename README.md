@@ -76,7 +76,7 @@ them to judge profitability.
     <td width="240"><img src="docs/interview.gif" width="240" alt="A tester talking about On the Spot after trying it on his phone"></td>
     <td>
       <blockquote>“What I liked most is that you can practise for the different situations you run into at work… the app shows you right away what you did right and what you need to improve. This is very useful for me.”</blockquote>
-      <p>Freelance handyman, US · translated from Kazakh</p>
+      <p>Aidos, freelance handyman, US · translated from Kazakh</p>
     </td>
   </tr>
 </table>
@@ -86,6 +86,8 @@ them to judge profitability.
 > to me.”
 >
 > Lawyer, immigrant professional working in English in the US, after looking through the product · translated from Russian
+
+▶ Watch the full interviews: [Aidos, handyman (59 s)](https://github.com/DataMata2/on-the-spot/releases/download/interviews/tester-1-aidos-handyman.mp4) · [a third tester (37 s)](https://github.com/DataMata2/on-the-spot/releases/download/interviews/tester-3.mp4)
 
 ## Tech and quality
 
