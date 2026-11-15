@@ -60,6 +60,12 @@ Full model and sources → [business-model/](business-model/)
   </tr>
 </table>
 
+> “What I especially liked is the chance to practise in advance: pick your field, answer a question and get a concrete
+> breakdown: what worked, what was missing and how to make the answer clearer. … At $12 a month, this feels affordable
+> to me.”
+>
+> Lawyer, immigrant professional working in English in the US, after looking through the product · translated from Russian
+
 ## Tech and quality
 
 - **Stack:** Next.js 16 (App Router), TypeScript, Tailwind CSS v4, Anthropic Claude (`claude-sonnet-5-5`), ElevenLabs,
