@@ -83,6 +83,6 @@ F2,future,derived,US employed in management/professional occupations 2025,71.3,m
 F3,future,derived,"US professionals who fear speaking up in a meeting (Future, not built)",13.9,million,calc,F2 x F1 (ASSUMPTION: 2001-03 prevalence applied to 2025)
 F4,future,derived,A3 as a share of F3,8,%,calc,A3 / F3
 BE1,breakeven,input,Fixed costs in the first tier (Planned placeholders),250 fixed + 2000 founders,USD/month,ASSUMPTION,our planning placeholders (tier up to 500 payers)
-BE2,breakeven,derived,Contribution per active payer-month,3.70 (heavy AI) - 4.80 (base AI),USD,calc,"89/11 active mix: price - Stripe - AI - support (C9) - infra 0.10 - refunds, per month"
+BE2,breakeven,derived,Contribution per active payer-month,3.80 (heavy AI) - 4.80 (base AI),USD,calc,"base: yearly (79 - 3.14 Stripe - 4.80 AI) x 0.9569 refunds / 12 - 1.33 support = 4.33; monthly (12 - 0.73 - 0.40) x 0.9569 - 1.33 = 9.07; mix 0.89 x 4.33 + 0.11 x 9.07 = 4.85 ~ 4.80 (support 1.33 = 4 min at 20 USD/h); heavy AI 1.50/mo: yearly (79 - 3.14 - 18) x 0.9569 / 12 - 1.33 = 3.28; monthly (12 - 0.73 - 1.50) x 0.9569 - 1.33 = 8.02; mix 0.89 x 3.28 + 0.11 x 8.02 = 3.80"
 BE3,breakeven,derived,Break-even active payers at base AI use,470,payers,calc,(250 + 2000) / 4.80 (before acquisition spend)
-BE4,breakeven,derived,Break-even at heavy AI use,none in the first tier; next tier 7750 USD/month / 3.70 = 2100,payers,calc,"next tier: founders 4000 + staff 3000 + fixed 750, capped at 2000 payers"
+BE4,breakeven,derived,Break-even at heavy AI use,none in the first tier; next tier 7750 USD/month / 3.80 = 2040,payers,calc,"next tier: founders 4000 + staff 3000 + fixed 750, capped at 2000 payers"

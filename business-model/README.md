@@ -239,10 +239,15 @@ CAC, API $1.50, support 4 min @ $20/h, infra $0.10. The live product is **$12/mo
   contribution ($104 at $19) becomes ≈ **$29 at $12** on the benchmark curve [calc: (12 − 0.36 − 0.73 − 1.50 − 1.33 − 0.10) × 3.61].
   The annual $79 plan, which it left out, adds the bulk of the value ($48.7 with support; section 4).
 - **Break-even [calc], before acquisition spend, on Planned fixed costs ($250/mo fixed + $2,000/mo founders, planning
-  placeholders):** contribution per active payer-month ≈ $3.70 (heavy AI) to $4.80 (base AI) at the 89/11 active mix →
+  placeholders):** contribution per active payer-month ≈ $3.80 (heavy AI) to $4.80 (base AI) at the 89/11 active mix →
   **≈ 470 active payers at base AI use** (inside the ≤ 500-payer cost tier: $250 fixed + $2,000 founders); at heavy AI
   use there is no break-even in that tier: the next tier is $7,750/mo (founders $4,000 + staff $3,000 + fixed $750),
-  $7,750 ÷ $3.70 ≈ 2,100 payers, above that tier's 2,000 cap.
+  $7,750 ÷ $3.80 ≈ 2,040 payers, above that tier's 2,000 cap.
+  How the $4.80 is built (per active payer-month, typical AI $0.40/mo, support $1.33/mo = 4 min at $20/h):
+  - Yearly: ($79 − $3.14 Stripe − $4.80 AI) × 0.9569 (after refunds) ÷ 12 = $5.67, − $1.33 = **$4.33**
+  - Monthly: ($12 − $0.73 Stripe − $0.40 AI) × 0.9569 = $10.40, − $1.33 = **$9.07**
+  - Mix: 0.89 × $4.33 + 0.11 × $9.07 ≈ **$4.85 ≈ $4.80**, so $2,250 ÷ $4.80 ≈ 470 (before acquisition spend, inside
+    the ≤ 500-payer cost tier). The same method at heavy AI ($1.50/mo): ($79 − $3.14 − $18) × 0.9569 ÷ 12 − $1.33 = $3.28 yearly, ($12 − $0.73 − $1.50) × 0.9569 − $1.33 = $8.02 monthly, mix ≈ **$3.80**.
 - Its $30 CAC and 10% trial conversion are unmeasured; not used.
 
 ## 9. Not verified / left out

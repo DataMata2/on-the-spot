@@ -48,7 +48,6 @@
 
 Full model and sources → [business-model/](business-model/)
 
-<!-- TODO(overseer): Talking to real people — photo + 1–2 quotes -->
 
 ## Tech and quality
 

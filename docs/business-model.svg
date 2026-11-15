@@ -52,8 +52,8 @@
     <rect x="948" y="108" width="211" height="140" rx="14" fill="#FFFFFF" stroke="#E4DFD0"/>
     <text x="966" y="136" class="lab">BREAK-EVEN</text>
     <text x="966" y="182" class="big">≈ 470</text>
-    <text x="966" y="208" class="sub">active payers, typical AI use</text>
-    <text x="966" y="228" class="sub">costs $250 + $2,000/mo (Planned)</text>
+    <text x="966" y="208" class="sub">payers, typical AI use only</text>
+    <text x="966" y="228" class="sub">on $2,250/mo costs (Planned)</text>
   </g>
 
   <!-- Left panel: CAC by channel -->
