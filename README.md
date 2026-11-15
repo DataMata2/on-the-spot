@@ -48,13 +48,24 @@
 
 Full model and sources → [business-model/](business-model/)
 
+## Talking to real people
+
+<table>
+  <tr>
+    <td width="240"><img src="docs/interview.gif" width="240" alt="A tester talking about On the Spot after trying it on his phone"></td>
+    <td>
+      <blockquote>“What I liked most is that you can practise for the different situations you run into at work… the app shows you right away what you did right and what you need to improve. This is very useful for me.”</blockquote>
+      <p>Freelance handyman, US · translated from Kazakh</p>
+    </td>
+  </tr>
+</table>
 
 ## Tech and quality
 
 - **Stack:** Next.js 16 (App Router), TypeScript, Tailwind CSS v4, Anthropic Claude (`claude-sonnet-5-5`), ElevenLabs,
   Stripe. **No database:** progress lives in the browser (localStorage); Pro is a signed httpOnly cookie, set only
   after the server verifies the Checkout Session with Stripe.
-- **Tests:** 30 test files, **463 tests**, all passing (`pnpm exec vitest run --maxWorkers=1`).
+- **Tests:** 32 test files, **478 tests**, all passing (`pnpm exec vitest run --maxWorkers=1`).
 - **How the AI is constrained:** structured JSON output, validated server-side; quotes verified against the
   transcript; a number/day guard on rewrites; drill 2 grading is code, not the model; TTS only speaks texts the server
   vouches for (HMAC tokens); AI calls are rate-limited per guest (60/h), per IP and globally.
